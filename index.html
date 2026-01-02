@@ -2,133 +2,119 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner Pokemon Pro</title>
+    <title>Scanner Pokemon V2 | Alta Precisão</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; display: flex; justify-content: center; }
-        .box { width: 100%; max-width: 380px; background: #222; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input { width: 100%; padding: 12px; margin: 5px 0 15px 0; background: #000; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-blue { background: #3B4CCA; color: white; margin-bottom: 15px; }
-        .btn-green { background: #28a745; color: white; }
-        .preview { display: flex; align-items: center; gap: 15px; background: #1a1a1a; padding: 10px; border-radius: 10px; min-height: 100px; margin-bottom: 15px; }
-        #cardImg { width: 80px; display: none; border-radius: 5px; }
+        :root { --primary: #3B4CCA; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 400px; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #333; }
+        input { width: 100%; background: #000; border: 1px solid #444; padding: 12px; color: white; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        .btn-search { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .result-box { display: flex; background: #000; padding: 15px; border-radius: 12px; align-items: center; gap: 15px; min-height: 120px; margin: 20px 0; border: 1px dashed #444; }
+        #cardImg { width: 85px; display: none; }
+        .btn-save { width: 100%; background: #2e7d32; color: white; border: none; padding: 18px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>Scanner Direto V2</h2>
-    
-    <label>Set (ex: sv8a)</label>
-    <input type="text" id="setID" placeholder="Coleção">
-    
-    <label>Número (ex: 127)</label>
-    <input type="text" id="cardNum" placeholder="Número">
-    
-    <button class="btn-blue" onclick="buscarCarta()">PESQUISAR</button>
+<div class="container">
+    <h2 style="text-align:center; color:#FFCB05">Scanner V2 Pro</h2>
 
-    <div class="preview">
+    <input type="text" id="setID" placeholder="Set ID (ex: sv8a)">
+    <input type="text" id="cardNum" placeholder="Número (ex: 150)">
+    <button class="btn-search" onclick="buscarCarta()">PESQUISAR</button>
+
+    <div class="result-box">
         <img id="cardImg" src="">
-        <div id="cardInfo">Aguardando busca...</div>
+        <div id="cardInfo">Aguardando consulta...</div>
     </div>
 
     <input type="email" id="userEmail" placeholder="E-mail do Cliente">
-    <input type="number" id="valor" placeholder="Valor R$">
-    
-    <button class="btn-green" id="btnSave" onclick="salvar()" disabled>CREDITAR CARTA</button>
+    <input type="number" id="vendaValor" placeholder="Valor (R$)">
+
+    <button id="btnSave" class="btn-save" onclick="salvarNoSupabase()" disabled>CREDITAR CARTA</button>
 </div>
 
 <script>
-    // --- CONFIGURAÇÃO (Troque pelos seus dados) ---
-    const POKEMON_KEY = 'd18f5a1e-b4db-49ad-841b-6809c5f0515c'; 
+    // --- CHAVES ---
+    const POKETCG_KEY = 'd18f5a1e-b4db-49ad-841b-6809c5f0515c'; 
     const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
     const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
 
-    // Mudamos o nome para supabaseClient para evitar o erro de "already declared"
-    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-
-    let cartaEncontrada = null;
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
+    let cartaData = null;
 
     async function buscarCarta() {
         const set = document.getElementById('setID').value.trim().toLowerCase();
-        let numInput = document.getElementById('cardNum').value.trim();
-        let num = numInput.includes('/') ? numInput.split('/')[0] : numInput;
+        let num = document.getElementById('cardNum').value.trim();
         
+        // Limpa o número: Se for 045/067, pega só o 045
+        if(num.includes('/')) num = num.split('/')[0];
+
         const info = document.getElementById('cardInfo');
         const img = document.getElementById('cardImg');
+        const btnSave = document.getElementById('btnSave');
 
-        info.innerText = "Buscando...";
-        
+        info.innerHTML = "Buscando...";
+        img.style.display = "none";
+
         try {
-            const url = `https://api.pokemontcg.io/v2/cards?q=set.id:${set} number:${num}`;
-            
+            // AQUI ESTÁ O SEGREDO: Em vez de /cards/id, usamos a busca por parâmetros
+            // q=set.id:sv8a number:150
+            const query = `set.id:${set} number:${num}`;
+            const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=1`;
+
             const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Api-Key': POKEMON_KEY,
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'X-Api-Key': POKETCG_KEY }
             });
 
             const result = await response.json();
 
+            // V2 sempre retorna um array em 'data' quando usamos o endpoint de busca
             if (result.data && result.data.length > 0) {
-                cartaEncontrada = result.data[0];
-                img.src = cartaEncontrada.images.small;
+                cartaData = result.data[0]; // Pegamos o primeiro resultado
+                
+                img.src = cartaData.images.small;
                 img.style.display = "block";
-                info.innerHTML = `<strong>${cartaEncontrada.name}</strong><br>${cartaEncontrada.set.name}`;
-                document.getElementById('btnSave').disabled = false;
+                
+                info.innerHTML = `
+                    <b style="color:#FFCB05">${cartaData.name}</b><br>
+                    <small>${cartaData.set.name}</small><br>
+                    <span style="color:#4caf50">$${cartaData.cardmarket?.prices?.averageSellPrice || '0.00'}</span>
+                `;
+                btnSave.disabled = false;
             } else {
-                img.style.display = "none";
-                info.innerText = "Carta não encontrada.";
+                info.innerHTML = "<span style='color:red'>Não encontrada! Verifique o Set.</span>";
+                btnSave.disabled = true;
             }
         } catch (e) {
-            info.innerText = "Erro: " + e.message;
+            info.innerHTML = "Erro na conexão.";
         }
     }
 
-    async function salvar() {
+    async function salvarNoSupabase() {
         const email = document.getElementById('userEmail').value;
-        const valorVenda = document.getElementById('valor').value;
-        const btn = document.getElementById('btnSave');
-
-        if (!email || !cartaEncontrada) return alert("Preencha o e-mail!");
-
-        btn.innerText = "Salvando...";
-        btn.disabled = true;
+        const valor = document.getElementById('vendaValor').value;
 
         try {
-            // Usando o novo nome da variável cliente
-            const { data: user, error: userError } = await supabaseClient
-                .from('perfis')
-                .select('id')
-                .eq('email_contato', email)
-                .single();
-            
-            if (userError || !user) throw new Error("Usuário não encontrado.");
+            const { data: profile } = await _supabase.from('perfis').select('id').eq('email_contato', email).single();
+            if (!profile) throw new Error("E-mail não cadastrado");
 
-            const { error: invError } = await supabaseClient
-                .from('inventario')
-                .insert([{
-                    user_id: user.id,
-                    nome_pokemon: cartaEncontrada.name,
-                    set_codigo: cartaEncontrada.set.id,
-                    numero_card: cartaEncontrada.number,
-                    preco_pago: parseFloat(valorVenda) || 0,
-                    status: 'No Fichário'
-                }]);
+            await _supabase.from('inventario').insert([{
+                user_id: profile.id,
+                nome_pokemon: cartaData.name,
+                set_codigo: cartaData.set.id,
+                numero_card: cartaData.number,
+                preco_pago: parseFloat(valor) || 0,
+                status: 'No Fichário'
+            }]);
 
-            if (invError) throw invError;
-
-            alert("Cartinha cadastrada com sucesso!");
+            alert("✅ Carta Adicionada!");
             document.getElementById('cardNum').value = "";
-            document.getElementById('valor').value = "";
-        } catch (e) {
-            alert("Erro: " + e.message);
-        } finally {
-            btn.innerText = "CREDITAR CARTA";
-            btn.disabled = false;
+            document.getElementById('vendaValor').value = "";
+        } catch (err) {
+            alert(err.message);
         }
     }
 </script>
