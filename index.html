@@ -1,66 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner Pokemon Pro 2</title>
+    <title>Scanner Pokemon JPN</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .box { background: #222; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; border: 1px solid #333; }
-        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #000; color: white; }
-        button { padding: 10px 20px; cursor: pointer; background: #3B4CCA; color: white; border: none; border-radius: 5px; font-weight: bold; }
-        #resultado { margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .card-item { background: #333; padding: 10px; border-radius: 10px; width: 120px; }
-        .card-item img { width: 100%; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: #222; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        .input-group { margin-bottom: 10px; text-align: left; }
+        input { width: 100%; padding: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-search { background: #3B4CCA; color: white; }
+        #galeria { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .card-preview { background: #1a1a1a; padding: 10px; border-radius: 10px; border: 1px solid #333; text-align: center; }
+        .card-preview img { width: 100%; border-radius: 5px; }
+        .btn-choose { background: #28a745; color: white; padding: 8px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>Scanner Pokemon V2</h2>
-    <input type="text" id="setID" placeholder="ID do Set (ex: sv8a)">
-    <input type="text" id="cardNum" placeholder="Número (opcional)">
-    <br>
-    <button onclick="buscar()">BUSCAR CARTA OU COLEÇÃO</button>
-</div>
+<div class="container">
+    <h2 style="color: #FFCB05; text-align: center;">Scanner JPN Pro</h2>
+    
+    <div class="input-group">
+        <label>ID do Set Japonês (Ex: sv8a, s12a, sv4k)</label>
+        <input type="text" id="setID" placeholder="Ex: sv8a">
+    </div>
+    
+    <div class="input-group">
+        <label>Número (Opcional - Ex: 045)</label>
+        <input type="text" id="cardNum" placeholder="Ex: 045">
+    </div>
 
-<div id="resultado"></div>
+    <button class="btn-search" onclick="buscar()">BUSCAR NA COLEÇÃO</button>
+
+    <div id="galeria"></div>
+</div>
 
 <script>
     async function buscar() {
         const set = document.getElementById('setID').value.trim();
-        const num = document.getElementById('cardNum').value.trim();
-        const lista = document.getElementById('resultado');
-        
-        lista.innerHTML = "Buscando...";
+        let num = document.getElementById('cardNum').value.trim();
+        const galeria = document.getElementById('galeria');
+
+        // Se o usuário digitar "045/067", pegamos apenas o "045"
+        if (num.includes('/')) num = num.split('/')[0];
+
+        galeria.innerHTML = "<p>Buscando no banco japonês...</p>";
 
         try {
-            // Chamamos nossa função na Vercel
             const resp = await fetch(`/api/pokemon?set=${set}&num=${num}`);
-            const json = await resp.json();
+            const result = await resp.json();
 
-            if (json.data && json.data.length > 0) {
-                lista.innerHTML = ""; // Limpa o texto de busca
-                json.data.forEach(carta => {
-                    lista.innerHTML += `
-                        <div class="card-item">
+            if (result.data && result.data.length > 0) {
+                galeria.innerHTML = "";
+                result.data.forEach(carta => {
+                    galeria.innerHTML += `
+                        <div class="card-preview">
                             <img src="${carta.images.small}">
-                            <p style="font-size:10px">${carta.name}<br>${carta.number}/${carta.set.printedTotal}</p>
-                            <button onclick="selecionar('${carta.id}')" style="font-size:9px; background: green;">ESCOLHER</button>
+                            <p style="font-size:11px; margin: 5px 0;">${carta.name}</p>
+                            <button class="btn-choose" onclick="selecionar('${carta.id}', '${carta.name}')">SELECIONAR</button>
                         </div>
                     `;
                 });
             } else {
-                lista.innerHTML = "Nenhuma carta encontrada.";
+                galeria.innerHTML = "<p style='color:red'>Nenhuma carta encontrada. Verifique se o ID do set está correto (ex: sv8a).</p>";
             }
         } catch (e) {
-            lista.innerHTML = "Erro ao conectar com o servidor.";
+            galeria.innerHTML = "<p>Erro na conexão com a Vercel.</p>";
         }
     }
 
-    function selecionar(id) {
-        alert("Carta selecionada: " + id + ". Agora você pode preencher o e-mail e salvar!");
-        // Aqui você pode adicionar a lógica de salvar no Supabase que já tínhamos
+    function selecionar(id, nome) {
+        alert("Selecionado: " + nome + "\nID: " + id + "\n\nAgora você pode preencher o e-mail do cliente e salvar!");
+        // Aqui conectaremos com seu código de salvar no Supabase
     }
 </script>
 </body>
