@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Live Market Pokémon</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f9f9f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 380px; border-top: 6px solid #3B4CCA; }
+        .logo { text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 22px; }
+        .logo span { color: #EE1515; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #3B4CCA; }
+        button { width: 100%; padding: 12px; background: #3B4CCA; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        button:hover { background: #EE1515; }
+        .footer-link { text-align: center; margin-top: 20px; font-size: 13px; color: #666; }
+        .footer-link a { color: #3B4CCA; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="logo"><span>LIVE</span> MARKET</div>
+    <h3 style="text-align: center; margin-top: 0;">ACESSAR PAINEL</h3>
+    
+    <form id="formLogin">
+        <input type="email" id="email" placeholder="E-mail cadastrado" required>
+        <input type="password" id="senha" placeholder="Sua senha" required>
+        <button type="submit">Entrar no Mercado</button>
+    </form>
+
+    <div class="footer-link">
+        Novo por aqui? <a href="cadastro.html">Criar conta grátis</a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // Configurações (Use as mesmas chaves do cadastro)
+    const SUPABASE_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co'; 
+    const SUPABASE_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById('formLogin');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('senha').value;
+
+        // Tentar realizar o login
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            alert("Erro ao entrar: " + error.message);
+            console.error(error);
+        } else {
+            console.log("Login realizado!", data);
+            alert("Bem-vindo de volta!");
+            // Redireciona para o Dashboard (que vamos criar a seguir)
+            window.location.href = "dashboard.html"; 
+        }
+    });
+</script>
+
+</body>
+</html>
