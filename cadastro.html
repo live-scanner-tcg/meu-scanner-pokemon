@@ -47,49 +47,39 @@
     const btn = document.getElementById('btnCadastrar');
 
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        btn.disabled = true;
-        btn.innerText = "Processando...";
+    e.preventDefault();
+    
+    btn.disabled = true;
+    btn.innerText = "Processando...";
 
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('senha').value;
-        const nome = document.getElementById('nome').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('senha').value;
+    const nome = document.getElementById('nome').value;
 
-        try {
-            // 1. CRIAR CONTA NO AUTH
-            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-                email: email,
-                password: password
-            });
+    try {
+        // 1. CRIAR CONTA NO AUTH 
+        // A Trigger no Supabase vai detectar isso e criar o perfil sozinha!
+        const { data, error } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: { full_name: nome } // A Trigger usa esse campo 'full_name'
+            }
+        });
 
-            if (authError) throw authError;
+        if (error) throw error;
 
-            // 2. SALVAR NA TABELA PERFIS (Para o Admin conseguir consultar)
-            // Usamos o ID gerado pelo Auth para vincular o perfil
-            const { error: dbError } = await supabaseClient
-                .from('perfis')
-                .insert([
-                    { 
-                        id: authData.user.id, 
-                        nome_completo: nome,
-                        email: email
-                    }
-                ]);
+        alert("Cadastro realizado com sucesso!");
+        window.location.href = "index.html"; 
 
-            if (dbError) throw dbError;
-
-            alert("Cadastro realizado com sucesso! Agora o Admin já pode te localizar pelo nome.");
-            window.location.href = "index.html"; // Redireciona para login
-
-        } catch (error) {
-            alert("Erro no cadastro: " + error.message);
-            console.error(error);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Cadastrar Agora";
-        }
-    });
+    } catch (error) {
+        alert("Erro no cadastro: " + error.message);
+        console.error(error);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Cadastrar Agora";
+    }
+});
 </script>
 </body>
 </html>
