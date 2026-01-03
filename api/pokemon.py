@@ -13,32 +13,36 @@ class handler(BaseHTTPRequestHandler):
         if not set_id:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'{"error": "Set ID faltando"}')
+            self.wfile.write(b'{"error": "Digite um termo de busca"}')
             return
 
-        # AJUSTE NA QUERY: Usamos aspas duplas no valor do ID para garantir que a API entenda
-        # Exemplo final: q=set.id:"sv8a"
         api_url = "https://api.pokemontcg.io/v2/cards"
+        
+        # MUDANÇA AQUI: Removemos o "set.id" e usamos apenas "id:TERMO*"
+        # Isso busca qualquer carta que comece com o código que você digitou
         params = {
-            "q": f'set.id:"{set_id}"',
+            "q": f'id:{set_id}*', 
             "select": "id,name,number,images",
             "orderBy": "number",
-            "pageSize": "250"
+            "pageSize": "100"
         }
         
         headers = {"X-Api-Key": api_key}
 
         try:
-            # O 'requests' cuida de formatar os símbolos especiais na URL para nós
             response = requests.get(api_url, headers=headers, params=params)
             data = response.json()
+
+            # Se não achou nada com ID, tentamos buscar pelo NOME do set
+            if data.get('totalCount') == 0:
+                params["q"] = f'set.name:"{set_id}*"'
+                response = requests.get(api_url, headers=headers, params=params)
+                data = response.json()
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-
-            # Enviamos o resultado de volta
             self.wfile.write(json.dumps(data).encode('utf-8'))
             
         except Exception as e:
