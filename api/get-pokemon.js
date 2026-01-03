@@ -1,7 +1,7 @@
 // api/get-pokemon.js
 export default async function handler(req, res) {
     const { id } = req.query; // Pega o ID da URL (ex: xy1-1)
-    const apiKey = 'SUA_API_KEY_AQUI'; // Coloque sua chave real aqui
+    const apiKey = 'd18f5a1e-b4db-49ad-841b-6809c5f0515c'; // Coloque sua chave real aqui
 
     try {
         const response = await fetch(`https://api.pokemontcg.io/v2/cards/${id}`, {
