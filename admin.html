@@ -3,109 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Admin - Registro Rápido (10+ Cartas)</title>
+    <title>Scanner Admin Pro - Fluxo Contínuo</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #3B4CCA; --gold: #FFCB05; --bg: #0a0a0a; --card: #161616; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; }
+        :root { --blue: #3B4CCA; --gold: #FFCB05; --bg: #0a0a0a; --card: #161616; --green: #2e7d32; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; padding-bottom: 50px; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
-        .counter { background: var(--gold); color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        .counter { background: var(--gold); color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
 
-        .section { background: var(--card); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid #222; }
-        label { display: block; margin-bottom: 4px; color: var(--gold); font-size: 12px; font-weight: bold; text-transform: uppercase; }
-        input { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #333; background: #000; color: white; box-sizing: border-box; font-size: 16px; }
-
-        /* Área da Câmera Otimizada */
-        .camera-area { position: relative; width: 100%; height: 200px; background: #000; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-        #preview { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .guide { position: absolute; width: 85%; height: 70%; border: 1px dashed rgba(255,255,255,0.4); pointer-events: none; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; }
-
-        .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn-photo { background: var(--blue); color: white; }
-        .btn-save { background: #2e7d32; color: white; margin-top: 5px; }
+        .section { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #222; }
+        label { display: block; margin-bottom: 6px; color: var(--gold); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* Feedback de carregamento */
-        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
+        input { width: 100%; padding: 14px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #000; color: white; box-sizing: border-box; font-size: 16px; outline: none; }
+        input:focus { border-color: var(--blue); }
+
+        /* Preview da Câmera */
+        .camera-preview { position: relative; width: 100%; height: 220px; background: #000; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        #imgPreview { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .guide-overlay { position: absolute; width: 90%; height: 80%; border: 1px dashed rgba(255,255,255,0.3); pointer-events: none; display: flex; align-items: center; justify-content: center; color: #444; font-size: 12px; text-align: center; }
+
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-photo { background: var(--blue); color: white; margin-bottom: 10px; }
+        .btn-save { background: var(--green); color: white; }
+        
+        .status-msg { font-size: 12px; color: #888; margin-bottom: 10px; }
+        
+        /* Overlay de Carregamento */
+        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h3 style="color: var(--gold); margin:0;">Admin Scanner</h3>
-        <div class="counter">Cartas nesta rodada: <span id="count">0</span></div>
-    </div>
-
-    <div class="section" style="border-left: 4px solid var(--gold);">
-        <label>👤 Nick/ID do Cliente (Fixo)</label>
-        <input type="text" id="userIdentifier" placeholder="Nick do Cliente">
+        <h3 style="margin:0;">Admin Scanner</h3>
+        <div class="counter">Rodada: <span id="count">0</span></div>
     </div>
 
     <div class="section">
-        <div class="camera-area">
-            <div class="guide" id="guideText">ENQUADRE A CARTA</div>
-            <img id="preview">
+        <label>👤 Selecionar Cliente (JSON)</label>
+        <input type="text" id="userIdentifier" list="listaUsuarios" placeholder="Busque por Nick ou ID..." oninput="verificarUsuario()">
+        <datalist id="listaUsuarios"></datalist>
+        <div id="userStatus" class="status-msg">Aguardando identificação...</div>
+    </div>
+
+    <div class="section">
+        <label>📸 Foto da Carta</label>
+        <div class="camera-preview">
+            <div class="guide-overlay" id="guideText">ENQUADRE A CARTA NO SUPORTE</div>
+            <img id="imgPreview">
         </div>
-        <label for="fotoInput" class="btn btn-photo" style="display: block; text-align: center;">📸 TIRAR FOTO</label>
+        
+        <label for="fotoInput" class="btn btn-photo" style="display: block; text-align: center;">TIRAR FOTO</label>
         <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none">
 
         <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;">
-                <label>NÚMERO</label>
-                <input type="text" id="cardNumber" placeholder="045/180">
+            <div style="flex: 1.5;">
+                <label>Coleção</label>
+                <input type="text" id="cardSet" placeholder="Ex: sv8a">
             </div>
             <div style="flex: 1;">
-                <label>COLEÇÃO</label>
-                <input type="text" id="cardSet" placeholder="sv8a">
+                <label>Número</label>
+                <input type="text" id="cardNumber" placeholder="045/180">
             </div>
         </div>
         
-        <button id="btnSalvar" class="btn btn-save" onclick="salvarCarta()">💾 SALVAR E PRÓXIMA</button>
+        <button id="btnSalvar" class="btn btn-save" onclick="salvarCarta()">SALVAR E PRÓXIMA</button>
     </div>
 
-    <div id="loading" class="loading-overlay">
-        <div style="border: 4px solid #f3f3f3; border-top: 4px solid var(--gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
-        <p>Enviando carta...</p>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p id="loadingText" style="margin-top:15px; font-weight:bold;">Enviando para o Portfólio...</p>
     </div>
-
-    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
 
     <script>
-        // CONFIGURAÇÃO SUPABASE
+        // 1. CONFIGURAÇÃO DOS USUÁRIOS (JSON LOCAL)
+        const USUARIOS_JSON = [
+            { id: "001", nick: "LuckPok" },
+            { id: "002", nick: "MasterRed" },
+            { id: "003", nick: "GamerJPN" },
+            { id: "004", nick: "TCG_Collector" },
+            { id: "005", nick: "Bruno_Cartas" }
+        ];
+
+        // 2. CONFIGURAÇÃO SUPABASE
         const SUPABASE_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let cartaContador = 0;
+        let contadorRodada = 0;
         const fotoInput = document.getElementById('fotoInput');
-        const preview = document.getElementById('preview');
+        const imgPreview = document.getElementById('imgPreview');
         const guideText = document.getElementById('guideText');
 
+        // Carrega o Datalist com o JSON
+        (function carregarSugestoes() {
+            const datalist = document.getElementById('listaUsuarios');
+            USUARIOS_JSON.forEach(user => {
+                let opt = document.createElement('option');
+                opt.value = user.nick;
+                opt.innerText = `ID: ${user.id}`;
+                datalist.appendChild(opt);
+            });
+        })();
+
+        // Valida se o nick está na lista
+        function verificarUsuario() {
+            const val = document.getElementById('userIdentifier').value;
+            const status = document.getElementById('userStatus');
+            const user = USUARIOS_JSON.find(u => u.nick === val);
+            if (user) {
+                status.innerHTML = `<span style="color:var(--gold)">✅ Cliente: ${user.nick} (ID: ${user.id})</span>`;
+            } else {
+                status.innerHTML = `<span style="color:#666">❓ Nick manual (não está no JSON)</span>`;
+            }
+        }
+
+        // Preview da Foto
         fotoInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
-                preview.src = URL.createObjectURL(file);
-                preview.style.display = 'block';
+                imgPreview.src = URL.createObjectURL(file);
+                imgPreview.style.display = 'block';
                 guideText.style.display = 'none';
             }
         };
 
+        // Função Principal de Salvamento
         async function salvarCarta() {
             const user = document.getElementById('userIdentifier').value;
             const file = fotoInput.files[0];
-            const num = document.getElementById('cardNumber').value;
             const set = document.getElementById('cardSet').value;
+            const num = document.getElementById('cardNumber').value;
             const loading = document.getElementById('loading');
 
-            if (!user || !file || !num || !set) {
-                alert("Preencha todos os campos da carta!");
+            if (!user || !file || !set || !num) {
+                alert("Preencha todos os campos e tire a foto!");
                 return;
             }
 
             loading.style.display = 'flex';
 
             try {
-                // 1. Upload da Foto
+                // A. Upload da Imagem
                 const fileName = `portfolio/${Date.now()}_${user}.jpg`;
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('fotos-cartas')
@@ -116,7 +159,7 @@
                 const { data: urlData } = supabase.storage.from('fotos-cartas').getPublicUrl(fileName);
                 const publicUrl = urlData.publicUrl;
 
-                // 2. Salvar no Banco
+                // B. Registro no Banco de Dados
                 const { error: dbError } = await supabase
                     .from('portfolio_clientes')
                     .insert([{ 
@@ -127,21 +170,19 @@
 
                 if (dbError) throw dbError;
 
-                // 3. Reset para a PRÓXIMA CARTA
-                cartaContador++;
-                document.getElementById('count').innerText = cartaContador;
+                // C. Feedback e Reset para a próxima carta
+                contadorRodada++;
+                document.getElementById('count').innerText = contadorRodada;
                 
-                // Limpa campos da carta mas mantém o Nick
+                // Limpa apenas campos da carta
                 fotoInput.value = "";
-                preview.style.display = 'none';
+                imgPreview.style.display = 'none';
                 guideText.style.display = 'flex';
-                document.getElementById('cardNumber').value = "";
                 document.getElementById('cardSet').value = "";
+                document.getElementById('cardNumber').value = "";
                 
-                // Pequeno feedback visual de sucesso
                 loading.style.display = 'none';
-                console.log("Carta salva!");
-
+                
             } catch (err) {
                 alert("Erro: " + err.message);
                 loading.style.display = 'none';
