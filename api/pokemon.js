@@ -5,21 +5,25 @@ export default async function handler(req, res) {
     if (!set) return res.status(400).json({ error: 'Set ausente' });
 
     try {
-        // Mudamos a query: 'id:sv8a*' busca qualquer ID que comece com sv8a
-        // Isso resolve o problema de IDs como 'sv8a-1', 'sv8a-045', etc.
-        const url = `https://api.pokemontcg.io/v2/cards?q=id:${set}*&select=id,name,number,images&orderBy=number&pageSize=150`;
+        // Conforme a documentação: q=set.id:sv8a
+        // Usamos backticks para garantir que a query vá limpa
+        const query = `set.id:${set}`;
+        const url = `https://api.pokemontcg.io/v2/cards?q=${query}&select=id,name,number,images&orderBy=number&pageSize=250`;
 
         const response = await fetch(url, {
-            headers: { 'X-Api-Key': apiKey }
+            headers: { 
+                'X-Api-Key': apiKey,
+                'Accept': 'application/json'
+            }
         });
 
-        const data = await response.json();
+        const result = await response.json();
         
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 's-maxage=3600'); 
+        res.setHeader('Cache-Control', 's-maxage=86400'); 
         
-        return res.status(200).json(data);
+        return res.status(200).json(result);
     } catch (error) {
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: "Erro interno no servidor" });
     }
 }
