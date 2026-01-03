@@ -3,191 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Admin Pro - Fluxo Contínuo</title>
+    <title>Admin Scanner - Produção</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --blue: #3B4CCA; --gold: #FFCB05; --bg: #0a0a0a; --card: #161616; --green: #2e7d32; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; padding-bottom: 50px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
         .counter { background: var(--gold); color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
-
-        .section { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #222; }
-        label { display: block; margin-bottom: 6px; color: var(--gold); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        
-        input { width: 100%; padding: 14px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #000; color: white; box-sizing: border-box; font-size: 16px; outline: none; }
-        input:focus { border-color: var(--blue); }
-
-        /* Preview da Câmera */
-        .camera-preview { position: relative; width: 100%; height: 220px; background: #000; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .section { background: var(--card); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid #222; }
+        label { display: block; margin-bottom: 6px; color: var(--gold); font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        input { width: 100%; padding: 14px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #000; color: white; box-sizing: border-box; font-size: 16px; }
+        .camera-preview { position: relative; width: 100%; height: 220px; background: #000; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #imgPreview { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .guide-overlay { position: absolute; width: 90%; height: 80%; border: 1px dashed rgba(255,255,255,0.3); pointer-events: none; display: flex; align-items: center; justify-content: center; color: #444; font-size: 12px; text-align: center; }
-
-        .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .btn:active { transform: scale(0.98); }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn-photo { background: var(--blue); color: white; margin-bottom: 10px; }
-        .btn-save { background: var(--green); color: white; }
-        
-        .status-msg { font-size: 12px; color: #888; margin-bottom: 10px; }
-        
-        /* Overlay de Carregamento */
-        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-save { background: var(--green); color: white; margin-top: 10px; }
+        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h3 style="margin:0;">Admin Scanner</h3>
-        <div class="counter">Rodada: <span id="count">0</span></div>
+        <div class="counter">Cartas: <span id="count">0</span></div>
     </div>
 
     <div class="section">
-        <label>👤 Selecionar Cliente (JSON)</label>
-        <input type="text" id="userIdentifier" list="listaUsuarios" placeholder="Busque por Nick ou ID..." oninput="verificarUsuario()">
+        <label>👤 Selecionar Cliente</label>
+        <input type="text" id="userIdentifier" list="listaUsuarios" placeholder="Digite o nome do cliente...">
         <datalist id="listaUsuarios"></datalist>
-        <div id="userStatus" class="status-msg">Aguardando identificação...</div>
+        <div id="userStatus" style="font-size: 12px; color: #888;">Sincronizando banco...</div>
     </div>
 
     <div class="section">
         <label>📸 Foto da Carta</label>
         <div class="camera-preview">
-            <div class="guide-overlay" id="guideText">ENQUADRE A CARTA NO SUPORTE</div>
             <img id="imgPreview">
         </div>
-        
-        <label for="fotoInput" class="btn btn-photo" style="display: block; text-align: center;">TIRAR FOTO</label>
+        <label for="fotoInput" class="btn btn-photo" style="display: block; text-align: center; margin-top: 10px;">TIRAR FOTO</label>
         <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none">
 
         <div style="display: flex; gap: 10px;">
-            <div style="flex: 1.5;">
-                <label>Coleção</label>
-                <input type="text" id="cardSet" placeholder="Ex: sv8a">
-            </div>
-            <div style="flex: 1;">
-                <label>Número</label>
-                <input type="text" id="cardNumber" placeholder="045/180">
-            </div>
+            <input type="text" id="cardSet" placeholder="Coleção (ex: sv8a)">
+            <input type="text" id="cardNumber" placeholder="Nº (ex: 045/180)">
         </div>
-        
-        <button id="btnSalvar" class="btn btn-save" onclick="salvarCarta()">SALVAR E PRÓXIMA</button>
+        <button id="btnSalvar" class="btn btn-save">SALVAR NO PORTFÓLIO</button>
     </div>
 
     <div id="loading">
-        <div class="spinner"></div>
-        <p id="loadingText" style="margin-top:15px; font-weight:bold;">Enviando para o Portfólio...</p>
+        <div style="color:var(--gold)">⏳ Enviando...</div>
     </div>
 
     <script>
-        // 1. CONFIGURAÇÃO DOS USUÁRIOS (JSON LOCAL)
-        const USUARIOS_JSON = [
-            { id: "001", nick: "LuckPok" },
-            { id: "002", nick: "MasterRed" },
-            { id: "003", nick: "GamerJPN" },
-            { id: "004", nick: "TCG_Collector" },
-            { id: "005", nick: "Bruno_Cartas" }
-        ];
+        // --- CONFIGURAÇÃO SUPABASE ---
+        const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
+        const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-        // 2. CONFIGURAÇÃO SUPABASE
-        const SUPABASE_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const userInp = document.getElementById('userIdentifier');
+        const datalist = document.getElementById('listaUsuarios');
+        const statusTxt = document.getElementById('userStatus');
+        let listaLocalPerfis = []; 
 
-        let contadorRodada = 0;
-        const fotoInput = document.getElementById('fotoInput');
-        const imgPreview = document.getElementById('imgPreview');
-        const guideText = document.getElementById('guideText');
+        // 1. BUSCA OS NOMES DA TABELA "PERFIS"
+        async function sincronizarPerfis() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('perfis') 
+                    .select('id, nome_completo');
 
-        // Carrega o Datalist com o JSON
-        (function carregarSugestoes() {
-            const datalist = document.getElementById('listaUsuarios');
-            USUARIOS_JSON.forEach(user => {
-                let opt = document.createElement('option');
-                opt.value = user.nick;
-                opt.innerText = `ID: ${user.id}`;
-                datalist.appendChild(opt);
-            });
-        })();
+                if (error) throw error;
 
-        // Valida se o nick está na lista
-        function verificarUsuario() {
-            const val = document.getElementById('userIdentifier').value;
-            const status = document.getElementById('userStatus');
-            const user = USUARIOS_JSON.find(u => u.nick === val);
-            if (user) {
-                status.innerHTML = `<span style="color:var(--gold)">✅ Cliente: ${user.nick} (ID: ${user.id})</span>`;
-            } else {
-                status.innerHTML = `<span style="color:#666">❓ Nick manual (não está no JSON)</span>`;
+                listaLocalPerfis = data;
+                datalist.innerHTML = "";
+                data.forEach(p => {
+                    if(p.nome_completo) {
+                        let opt = document.createElement('option');
+                        opt.value = p.nome_completo; 
+                        datalist.appendChild(opt);
+                    }
+                });
+                statusTxt.innerText = "✅ Clientes carregados.";
+            } catch (err) {
+                statusTxt.innerText = "❌ Erro ao carregar perfis.";
+                console.error(err);
             }
         }
 
-        // Preview da Foto
-        fotoInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                imgPreview.src = URL.createObjectURL(file);
-                imgPreview.style.display = 'block';
-                guideText.style.display = 'none';
+        sincronizarPerfis();
+
+        // Validação visual
+        userInp.addEventListener('input', () => {
+            const encontrado = listaLocalPerfis.find(p => p.nome_completo === userInp.value);
+            statusTxt.innerHTML = encontrado ? 
+                `<span style="color:var(--gold)">✅ Cliente: ${encontrado.nome_completo}</span>` : 
+                `<span style="color:#888">❓ Nome não encontrado no banco</span>`;
+        });
+
+        // LÓGICA DE FOTO E SALVAMENTO
+        const fotoInp = document.getElementById('fotoInput');
+        const imgPrev = document.getElementById('imgPreview');
+        const btnSave = document.getElementById('btnSalvar');
+        const loading = document.getElementById('loading');
+        let contador = 0;
+
+        fotoInp.onchange = (e) => {
+            if (e.target.files[0]) {
+                imgPrev.src = URL.createObjectURL(e.target.files[0]);
+                imgPrev.style.display = 'block';
             }
         };
 
-        // Função Principal de Salvamento
-        async function salvarCarta() {
-            const user = document.getElementById('userIdentifier').value;
-            const file = fotoInput.files[0];
+        btnSave.onclick = async () => {
+            const user = userInp.value;
+            const file = fotoInp.files[0];
             const set = document.getElementById('cardSet').value;
             const num = document.getElementById('cardNumber').value;
-            const loading = document.getElementById('loading');
 
-            if (!user || !file || !set || !num) {
-                alert("Preencha todos os campos e tire a foto!");
-                return;
-            }
+            if (!user || !file || !set || !num) return alert("Faltam informações!");
 
             loading.style.display = 'flex';
 
             try {
-                // A. Upload da Imagem
-                const fileName = `portfolio/${Date.now()}_${user}.jpg`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                // Upload Foto
+                const fileName = `portfolio/${Date.now()}.jpg`;
+                const { data: upData, error: upErr } = await supabaseClient.storage
                     .from('fotos-cartas')
                     .upload(fileName, file);
 
-                if (uploadError) throw uploadError;
+                if (upErr) throw upErr;
+                const { data: urlData } = supabaseClient.storage.from('fotos-cartas').getPublicUrl(fileName);
 
-                const { data: urlData } = supabase.storage.from('fotos-cartas').getPublicUrl(fileName);
-                const publicUrl = urlData.publicUrl;
-
-                // B. Registro no Banco de Dados
-                const { error: dbError } = await supabase
+                // Salva no Portfólio
+                const { error: dbErr } = await supabaseClient
                     .from('portfolio_clientes')
                     .insert([{ 
-                        email: user, 
+                        email: user, // Salvando o nome completo no campo email por enquanto
                         nome_carta: `${set.toUpperCase()} ${num}`, 
-                        url_foto: publicUrl 
+                        url_foto: urlData.publicUrl 
                     }]);
 
-                if (dbError) throw dbError;
+                if (dbErr) throw dbErr;
 
-                // C. Feedback e Reset para a próxima carta
-                contadorRodada++;
-                document.getElementById('count').innerText = contadorRodada;
-                
-                // Limpa apenas campos da carta
-                fotoInput.value = "";
-                imgPreview.style.display = 'none';
-                guideText.style.display = 'flex';
+                contador++;
+                document.getElementById('count').innerText = contador;
+                fotoInp.value = "";
+                imgPrev.style.display = 'none';
                 document.getElementById('cardSet').value = "";
                 document.getElementById('cardNumber').value = "";
-                
-                loading.style.display = 'none';
-                
+                alert("Carta salva com sucesso!");
+
             } catch (err) {
                 alert("Erro: " + err.message);
+            } finally {
                 loading.style.display = 'none';
             }
-        }
+        };
     </script>
 </body>
 </html>
