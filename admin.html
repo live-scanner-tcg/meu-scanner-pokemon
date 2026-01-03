@@ -3,104 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Fixo - Admin</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <title>Admin - Registro Rápido (10+ Cartas)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #000; color: white; margin: 0; overflow: hidden; }
+        :root { --blue: #3B4CCA; --gold: #FFCB05; --bg: #0a0a0a; --card: #161616; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; }
         
-        /* Container da Câmera */
-        .camera-container {
-            position: relative;
-            width: 100vw;
-            height: 70vh;
-            background: #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
+        .counter { background: var(--gold); color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
 
-        /* O Frame / Moldura */
-        .frame {
-            position: absolute;
-            width: 280px; /* Largura padrão de uma carta */
-            height: 390px; /* Altura padrão */
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 15px;
-            pointer-events: none;
-        }
+        .section { background: var(--card); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid #222; }
+        label { display: block; margin-bottom: 4px; color: var(--gold); font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        input { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #333; background: #000; color: white; box-sizing: border-box; font-size: 16px; }
 
-        /* Área de Foco no Rodapé (Onde o OCR vai ler) */
-        .focus-area {
-            position: absolute;
-            bottom: 20px;
-            width: 240px;
-            height: 60px;
-            border: 2px solid #FFCB05;
-            background: rgba(255, 203, 5, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: #FFCB05;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        /* Área da Câmera Otimizada */
+        .camera-area { position: relative; width: 100%; height: 200px; background: #000; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        #preview { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .guide { position: absolute; width: 85%; height: 70%; border: 1px dashed rgba(255,255,255,0.4); pointer-events: none; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; }
 
-        .controls { padding: 20px; text-align: center; }
-        .btn-capture {
-            background: #3B4CCA; color: white; border: none;
-            padding: 20px; width: 80%; border-radius: 50px;
-            font-weight: bold; font-size: 18px;
-        }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-photo { background: var(--blue); color: white; }
+        .btn-save { background: #2e7d32; color: white; margin-top: 5px; }
         
-        #result { margin-top: 15px; color: #FFCB05; font-weight: bold; }
+        /* Feedback de carregamento */
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <div class="camera-container">
-        <div class="frame">
-            <div class="focus-area">Focar Rodapé Aqui</div>
-        </div>
-        <img id="preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+    <div class="header">
+        <h3 style="color: var(--gold); margin:0;">Admin Scanner</h3>
+        <div class="counter">Cartas nesta rodada: <span id="count">0</span></div>
     </div>
 
-    <div class="controls">
-        <label for="cameraFile" class="btn-capture" style="display: inline-block; cursor: pointer;">
-            CAPTURAR CARTA
-        </label>
-        <input type="file" id="cameraFile" accept="image/*" capture="environment" style="display: none;">
-        <div id="result">Aguardando posicionamento...</div>
+    <div class="section" style="border-left: 4px solid var(--gold);">
+        <label>👤 Nick/ID do Cliente (Fixo)</label>
+        <input type="text" id="userIdentifier" placeholder="Nick do Cliente">
     </div>
+
+    <div class="section">
+        <div class="camera-area">
+            <div class="guide" id="guideText">ENQUADRE A CARTA</div>
+            <img id="preview">
+        </div>
+        <label for="fotoInput" class="btn btn-photo" style="display: block; text-align: center;">📸 TIRAR FOTO</label>
+        <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none">
+
+        <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label>NÚMERO</label>
+                <input type="text" id="cardNumber" placeholder="045/180">
+            </div>
+            <div style="flex: 1;">
+                <label>COLEÇÃO</label>
+                <input type="text" id="cardSet" placeholder="sv8a">
+            </div>
+        </div>
+        
+        <button id="btnSalvar" class="btn btn-save" onclick="salvarCarta()">💾 SALVAR E PRÓXIMA</button>
+    </div>
+
+    <div id="loading" class="loading-overlay">
+        <div style="border: 4px solid #f3f3f3; border-top: 4px solid var(--gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+        <p>Enviando carta...</p>
+    </div>
+
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
 
     <script>
-        const input = document.getElementById('cameraFile');
-        const result = document.getElementById('result');
+        // CONFIGURAÇÃO SUPABASE
+        const SUPABASE_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let cartaContador = 0;
+        const fotoInput = document.getElementById('fotoInput');
         const preview = document.getElementById('preview');
+        const guideText = document.getElementById('guideText');
 
-        input.onchange = async (e) => {
+        fotoInput.onchange = (e) => {
             const file = e.target.files[0];
-            if (!file) return;
-
-            // Mostrar preview
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = "block";
-            
-            result.innerText = "🔍 Lendo zona de foco...";
-
-            // OCR focado
-            Tesseract.recognize(file, 'eng', {
-                logger: m => console.log(m)
-            }).then(({ data: { text } }) => {
-                // Tenta extrair o padrão XXX/XXX
-                const match = text.match(/\d{3}\/\d{3}/) || text.match(/\d{2,3}/);
-                if(match) {
-                    result.innerHTML = `✅ IDENTIFICADO: ${match[0]}`;
-                } else {
-                    result.innerHTML = `⚠️ Não li o número. Tente ajustar o suporte.`;
-                }
-            });
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+                guideText.style.display = 'none';
+            }
         };
+
+        async function salvarCarta() {
+            const user = document.getElementById('userIdentifier').value;
+            const file = fotoInput.files[0];
+            const num = document.getElementById('cardNumber').value;
+            const set = document.getElementById('cardSet').value;
+            const loading = document.getElementById('loading');
+
+            if (!user || !file || !num || !set) {
+                alert("Preencha todos os campos da carta!");
+                return;
+            }
+
+            loading.style.display = 'flex';
+
+            try {
+                // 1. Upload da Foto
+                const fileName = `portfolio/${Date.now()}_${user}.jpg`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('fotos-cartas')
+                    .upload(fileName, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = supabase.storage.from('fotos-cartas').getPublicUrl(fileName);
+                const publicUrl = urlData.publicUrl;
+
+                // 2. Salvar no Banco
+                const { error: dbError } = await supabase
+                    .from('portfolio_clientes')
+                    .insert([{ 
+                        email: user, 
+                        nome_carta: `${set.toUpperCase()} ${num}`, 
+                        url_foto: publicUrl 
+                    }]);
+
+                if (dbError) throw dbError;
+
+                // 3. Reset para a PRÓXIMA CARTA
+                cartaContador++;
+                document.getElementById('count').innerText = cartaContador;
+                
+                // Limpa campos da carta mas mantém o Nick
+                fotoInput.value = "";
+                preview.style.display = 'none';
+                guideText.style.display = 'flex';
+                document.getElementById('cardNumber').value = "";
+                document.getElementById('cardSet').value = "";
+                
+                // Pequeno feedback visual de sucesso
+                loading.style.display = 'none';
+                console.log("Carta salva!");
+
+            } catch (err) {
+                alert("Erro: " + err.message);
+                loading.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
