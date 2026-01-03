@@ -58,60 +58,83 @@
     </div>
 
     <script>
-        const camera = document.getElementById('camera');
-        const imgView = document.getElementById('imgView');
-        const loader = document.getElementById('loader');
-        const result = document.getElementById('result');
-        const statusBox = document.getElementById('status-box');
+    const camera = document.getElementById('camera');
+    const imgView = document.getElementById('imgView');
+    const loader = document.getElementById('loader');
+    const result = document.getElementById('result');
+    const statusBox = document.getElementById('status-box');
 
-        camera.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+    camera.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            // Interface
-            imgView.src = URL.createObjectURL(file);
-            imgView.style.display = "block";
-            document.getElementById('msg').style.display = "none";
-            statusBox.style.display = "block";
-            loader.innerText = "🔍 Processando imagem...";
-            result.innerText = "";
+        // Interface
+        imgView.src = URL.createObjectURL(file);
+        imgView.style.display = "block";
+        document.getElementById('msg').style.display = "none";
+        statusBox.style.display = "block";
+        loader.innerText = "🔍 Preparando imagem...";
+        result.innerText = "";
 
-            // O Tesseract trabalha aqui
-            try {
-                const worker = await Tesseract.createWorker({
-                    logger: m => {
-                        if(m.status === 'recognizing text') {
-                            loader.innerText = `Lendo Carta: ${Math.round(m.progress * 100)}%`;
-                        }
+        try {
+            // Criar um Worker (processador) com foco em números
+            const worker = await Tesseract.createWorker({
+                logger: m => {
+                    if(m.status === 'recognizing text') {
+                        loader.innerText = `Lendo Carta: ${Math.round(m.progress * 100)}%`;
                     }
-                });
+                }
+            });
 
-                await worker.loadLanguage('eng');
-                await worker.initialize('eng');
-                
-                // Filtramos a busca apenas para números e letras (ajuda muito a não errar)
-                await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-                });
+            await worker.loadLanguage('eng');
+            await worker.initialize('eng');
+            
+            // Configuração agressiva para cartas: aceita apenas números, letras e barras
+            await worker.setParameters({
+                tessedit_char_whitelist: '0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                tessedit_pageseg_mode: '11', // Modo que procura texto em qualquer lugar da foto
+            });
 
-                const { data: { text } } = await worker.recognize(file);
-                
-                // Lógica para extrair o número da carta (ex: 045/180)
-                const cardNum = text.match(/\d{3}\/\d{3}/) || text.match(/\d{2}\/\d{2}/);
-                
-                loader.innerText = "✅ Leitura concluída!";
-                result.innerHTML = `
-                    <small style="color:#888; font-size:12px">Detectado:</small><br>
-                    <strong>${cardNum ? cardNum[0] : "Número não identificado"}</strong>
-                    <br><small style="font-size:10px; color:#555">${text.substring(0,40)}...</small>
-                `;
+            const { data: { text } } = await worker.recognize(file);
+            console.log("Texto Bruto encontrado:", text);
 
-                await worker.terminate();
-            } catch (err) {
-                loader.innerText = "❌ Erro ao ler carta.";
-                console.error(err);
+            // Tenta achar o número da carta de várias formas:
+            // 1. Padrão 000/000
+            // 2. Apenas números seguidos (caso ele não veja a barra)
+            const padrao1 = text.match(/\d{3}\/\d{3}/);
+            const padrao2 = text.match(/\d{2,3}/g); // Pega grupos de 2 ou 3 números
+            
+            let finalId = "Não identificado";
+            
+            if (padrao1) {
+                finalId = padrao1[0];
+            } else if (padrao2 && padrao2.length >= 1) {
+                // Se ele achou números soltos, vamos tentar montar o código
+                finalId = padrao2.join(' '); 
             }
-        };
+
+            loader.innerText = "✅ Análise Finalizada";
+            result.innerHTML = `
+                <small style="color:#888;">Número Detectado:</small><br>
+                <strong style="font-size:28px; color:#FFCB05">${finalId}</strong>
+                <hr style="border:0; border-top:1px solid #333">
+                <small style="font-size:10px; color:#555">Texto bruto lido: ${text.replace(/\n/g, ' ')}</small>
+            `;
+
+            await worker.terminate();
+        } catch (err) {
+            loader.innerText = "❌ Erro no processamento.";
+            console.error(err);
+        }
+    };
+
+    function salvar() {
+        const email = document.getElementById('cEmail').value;
+        const dados = document.getElementById('result').innerText;
+        if(!email) return alert("Digite o e-mail do cliente!");
+        alert("Salvo: " + dados + " para " + email);
+    }
+</script>
 
         function salvar() {
             const email = document.getElementById('cEmail').value;
