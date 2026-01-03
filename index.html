@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Scanner Pokemon Pro 2</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .box { background: #222; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; border: 1px solid #333; }
+        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #000; color: white; }
+        button { padding: 10px 20px; cursor: pointer; background: #3B4CCA; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        #resultado { margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .card-item { background: #333; padding: 10px; border-radius: 10px; width: 120px; }
+        .card-item img { width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Scanner Pokemon V2</h2>
+    <input type="text" id="setID" placeholder="ID do Set (ex: sv8a)">
+    <input type="text" id="cardNum" placeholder="Número (opcional)">
+    <br>
+    <button onclick="buscar()">BUSCAR CARTA OU COLEÇÃO</button>
+</div>
+
+<div id="resultado"></div>
+
+<script>
+    async function buscar() {
+        const set = document.getElementById('setID').value.trim();
+        const num = document.getElementById('cardNum').value.trim();
+        const lista = document.getElementById('resultado');
+        
+        lista.innerHTML = "Buscando...";
+
+        try {
+            // Chamamos nossa função na Vercel
+            const resp = await fetch(`/api/pokemon?set=${set}&num=${num}`);
+            const json = await resp.json();
+
+            if (json.data && json.data.length > 0) {
+                lista.innerHTML = ""; // Limpa o texto de busca
+                json.data.forEach(carta => {
+                    lista.innerHTML += `
+                        <div class="card-item">
+                            <img src="${carta.images.small}">
+                            <p style="font-size:10px">${carta.name}<br>${carta.number}/${carta.set.printedTotal}</p>
+                            <button onclick="selecionar('${carta.id}')" style="font-size:9px; background: green;">ESCOLHER</button>
+                        </div>
+                    `;
+                });
+            } else {
+                lista.innerHTML = "Nenhuma carta encontrada.";
+            }
+        } catch (e) {
+            lista.innerHTML = "Erro ao conectar com o servidor.";
+        }
+    }
+
+    function selecionar(id) {
+        alert("Carta selecionada: " + id + ". Agora você pode preencher o e-mail e salvar!");
+        // Aqui você pode adicionar a lógica de salvar no Supabase que já tínhamos
+    }
+</script>
+</body>
+</html>
