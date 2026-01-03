@@ -8,34 +8,38 @@ class handler(BaseHTTPRequestHandler):
         query_params = parse_qs(urlparse(self.path).query)
         set_id = query_params.get("set", [""])[0].strip()
         
+        # Se não houver set_id, evitamos o erro 500 retornando erro 400
         if not set_id:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'{"error": "Set ID obrigatorio"}')
+            self.wfile.write(b'{"error": "Parametro set e obrigatorio"}')
             return
 
-        # Endpoint oficial da documentação: /v1/cards?set_id=XXX
+        # URL oficial da Documentação para listagem por Set
         api_url = f"https://api.pokemonpricetracker.com/v1/cards"
         params = {
             "set_id": set_id,
-            "limit": 250  # Traz o set inteiro de uma vez
+            "limit": 250
         }
-        
+
         try:
-            # Esta API é otimizada para velocidade
-            response = requests.get(api_url, params=params, timeout=10)
+            # Fazendo a requisição com Timeout para não travar a Vercel
+            response = requests.get(api_url, params=params, timeout=15)
+            
+            # Verifica se a API retornou erro (ex: 404 ou 403)
+            response.raise_for_status()
             data = response.json()
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
-            # Cache de 1 hora para performance máxima
-            self.send_header('Cache-Control', 's-maxage=3600')
             self.end_headers()
-
             self.wfile.write(json.dumps(data).encode('utf-8'))
             
         except Exception as e:
+            # Se der erro, ele envia a mensagem real para o seu console do navegador
             self.send_response(500)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+            error_msg = {"error": "Falha na API Price Tracker", "details": str(e)}
+            self.wfile.write(json.dumps(error_msg).encode('utf-8'))
