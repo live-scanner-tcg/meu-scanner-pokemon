@@ -67,46 +67,48 @@
     let selecionada = null;
 
     async function buscar() {
-        const query = document.getElementById('setQuery').value.trim();
-        const lista = document.getElementById('listaCartas');
-        if(!query) return;
+    const query = document.getElementById('setQuery').value.trim().toLowerCase();
+    const lista = document.getElementById('listaCartas');
+    
+    if(!query) return;
+    lista.innerHTML = "<tr><td colspan='3'>Buscando no Japão...</td></tr>";
 
-        lista.innerHTML = "<tr><td colspan='3' style='text-align:center'>A procurar...</td></tr>";
+    try {
+        // Chamada para sua função na Vercel
+        const resp = await fetch(`/api/pokemon?set=${query}`);
+        const result = await resp.json();
 
-        try {
-            // Chamada otimizada para a sua API na Vercel
-            // Usamos 'set' como parâmetro genérico
-            const resp = await fetch(`/api/pokemon?set=${query}`);
-            const result = await resp.json();
-
-            if (result.data && result.data.length > 0) {
-                lista.innerHTML = "";
-                result.data.forEach(carta => {
-                    const tr = document.createElement('tr');
-                    tr.id = `row-${carta.id}`;
-                    tr.onclick = () => {
-                        document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
-                        tr.classList.add('selected');
-                        selecionada = carta;
-                        document.getElementById('btnSave').disabled = false;
-                        document.getElementById('btnSave').innerText = `CREDITAR #${carta.number}`;
-                    };
-
-                    tr.innerHTML = `
-                        <td><img src="${carta.images.small}" class="thumb" loading="lazy"></td>
-                        <td>${carta.number}</td>
-                        <td>${carta.name}</td>
-                    `;
-                    lista.appendChild(tr);
-                });
-            } else {
-                lista.innerHTML = "<tr><td colspan='3' style='text-align:center'>Nada encontrado.</td></tr>";
-            }
-        } catch (e) {
-            lista.innerHTML = "<tr><td colspan='3' style='text-align:center; color:red'>Erro ao carregar.</td></tr>";
+        if (result.data && result.data.length > 0) {
+            lista.innerHTML = "";
+            result.data.forEach(carta => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selecionar(carta); // Seleciona ao clicar na linha
+                
+                tr.innerHTML = `
+                    <td style="width:50px"><img src="${carta.images.small}" style="width:40px; border-radius:3px" loading="lazy"></td>
+                    <td style="font-weight:bold">#${carta.number}</td>
+                    <td>${carta.name}</td>
+                `;
+                lista.appendChild(tr);
+            });
+        } else {
+            lista.innerHTML = "<tr><td colspan='3'>Nada encontrado para '"+query+"'. Tente 'sv8a' ou 'sv2a'.</td></tr>";
         }
+    } catch (e) {
+        lista.innerHTML = "<tr><td colspan='3' style='color:red'>Erro na ponte do servidor.</td></tr>";
     }
+}
 
+function selecionar(carta) {
+    // Esta função guarda a carta selecionada para o Supabase
+    selecionada = carta;
+    document.querySelectorAll('tr').forEach(r => r.style.background = "transparent");
+    event.currentTarget.style.background = "#3B4CCA";
+    
+    const btn = document.getElementById('btnSave');
+    btn.disabled = false;
+    btn.innerText = `CREDITAR #${carta.number} (${carta.name})`;
+}
     async function salvar() {
         const email = document.getElementById('email').value;
         const valor = document.getElementById('preco').value;
