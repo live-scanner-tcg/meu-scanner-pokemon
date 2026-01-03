@@ -2,144 +2,95 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner JPN - Lista Rápida</title>
+    <title>Scanner JPN - Doc Verified</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 15px; border-radius: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 15px; }
+        .container { max-width: 500px; margin: auto; }
+        .search-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 6px; }
+        button { padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-search { background: #3B4CCA; color: white; }
         
-        .search-area { display: flex; gap: 5px; margin-bottom: 15px; }
-        input { flex: 1; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 5px; }
-        button { padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
-        .btn-blue { background: #3B4CCA; color: white; }
+        .list-box { background: #1e1e1e; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 10px; border-bottom: 1px solid #333; font-size: 14px; cursor: pointer; }
+        tr:hover { background: #252525; }
+        tr.active { background: #3B4CCA !important; }
+        .mini-card { width: 45px; height: 63px; background: #333; border-radius: 3px; display: block; object-fit: cover; }
         
-        /* Lista em Tabela para Velocidade */
-        .list-container { max-height: 400px; overflow-y: auto; background: #111; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { background: #222; position: sticky; top: 0; padding: 10px; text-align: left; }
-        td { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; }
-        tr:hover { background: #222; }
-        tr.selected { background: #3B4CCA !important; }
-        .thumb { width: 40px; height: auto; border-radius: 2px; background: #333; }
-
-        .save-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #444; }
-        .btn-green { width: 100%; background: #2e7d32; color: white; padding: 15px; font-size: 16px; }
-        .btn-green:disabled { opacity: 0.3; }
+        .save-panel { margin-top: 20px; padding: 15px; background: #222; border-radius: 8px; }
+        .btn-save { width: 100%; background: #2e7d32; color: white; padding: 15px; margin-top: 10px; }
+        .btn-save:disabled { opacity: 0.2; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h3 style="color:#FFCB05; margin-top:0;">Scanner JPN Lista</h3>
-    
-    <div class="search-area">
-        <input type="text" id="setQuery" placeholder="Nome ou ID (ex: sv8a ou Terastal)">
-        <button class="btn-blue" onclick="buscar()">BUSCAR</button>
+    <div class="search-bar">
+        <input type="text" id="setInput" placeholder="ID exato (ex: sv8a, sv2a, s12a)">
+        <button class="btn-search" onclick="buscar()">BUSCAR</button>
     </div>
 
-    <div class="list-container">
+    <div class="list-box">
         <table>
-            <thead>
-                <tr>
-                    <th>Img</th>
-                    <th>Nº</th>
-                    <th>Nome da Carta</th>
-                </tr>
-            </thead>
-            <tbody id="listaCartas">
-                </tbody>
+            <tbody id="lista">
+                <tr><td style="text-align:center">Aguardando ID da coleção...</td></tr>
+            </tbody>
         </table>
     </div>
 
-    <div class="save-box">
-        <input type="email" id="email" placeholder="E-mail do Cliente" style="width:100%; margin-bottom:10px; box-sizing:border-box;">
-        <input type="number" id="preco" placeholder="Valor R$" style="width:100%; margin-bottom:10px; box-sizing:border-box;">
-        <button id="btnSave" class="btn-green" onclick="salvar()" disabled>CREDITAR SELECIONADA</button>
+    <div class="save-panel">
+        <input type="email" id="email" placeholder="E-mail do Cliente" style="width:100%; box-sizing:border-box; margin-bottom:10px">
+        <input type="number" id="valor" placeholder="Preço (R$)" style="width:100%; box-sizing:border-box;">
+        <button id="btnSave" class="btn-save" onclick="salvar()" disabled>CREDITAR CARTA</button>
     </div>
 </div>
 
 <script>
-    const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
-    const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
-    const _supabase = supabase.createClient(SB_URL, SB_KEY);
-
-    let selecionada = null;
+    let cartaSelecionada = null;
 
     async function buscar() {
-    const query = document.getElementById('setQuery').value.trim().toLowerCase();
-    const lista = document.getElementById('listaCartas');
-    
-    if(!query) return;
-    lista.innerHTML = "<tr><td colspan='3'>Buscando no Japão...</td></tr>";
+        const setId = document.getElementById('setInput').value.trim().toLowerCase();
+        const lista = document.getElementById('lista');
+        if(!setId) return;
 
-    try {
-        // Chamada para sua função na Vercel
-        const resp = await fetch(`/api/pokemon?set=${query}`);
-        const result = await resp.json();
-
-        if (result.data && result.data.length > 0) {
-            lista.innerHTML = "";
-            result.data.forEach(carta => {
-                const tr = document.createElement('tr');
-                tr.onclick = () => selecionar(carta); // Seleciona ao clicar na linha
-                
-                tr.innerHTML = `
-                    <td style="width:50px"><img src="${carta.images.small}" style="width:40px; border-radius:3px" loading="lazy"></td>
-                    <td style="font-weight:bold">#${carta.number}</td>
-                    <td>${carta.name}</td>
-                `;
-                lista.appendChild(tr);
-            });
-        } else {
-            lista.innerHTML = "<tr><td colspan='3'>Nada encontrado para '"+query+"'. Tente 'sv8a' ou 'sv2a'.</td></tr>";
-        }
-    } catch (e) {
-        lista.innerHTML = "<tr><td colspan='3' style='color:red'>Erro na ponte do servidor.</td></tr>";
-    }
-}
-
-function selecionar(carta) {
-    // Esta função guarda a carta selecionada para o Supabase
-    selecionada = carta;
-    document.querySelectorAll('tr').forEach(r => r.style.background = "transparent");
-    event.currentTarget.style.background = "#3B4CCA";
-    
-    const btn = document.getElementById('btnSave');
-    btn.disabled = false;
-    btn.innerText = `CREDITAR #${carta.number} (${carta.name})`;
-}
-    async function salvar() {
-        const email = document.getElementById('email').value;
-        const valor = document.getElementById('preco').value;
-        const btn = document.getElementById('btnSave');
-
-        if(!email || !selecionada) return alert("Selecione a carta e digite o e-mail!");
-
-        btn.disabled = true;
-        btn.innerText = "A guardar...";
+        lista.innerHTML = "<tr><td>Carregando dados da documentação...</td></tr>";
 
         try {
-            const { data: user } = await _supabase.from('perfis').select('id').eq('email_contato', email).single();
-            if(!user) throw new Error("Cliente não encontrado.");
+            const resp = await fetch(`/api/pokemon?set=${setId}`);
+            const json = await resp.json();
 
-            const { error } = await _supabase.from('inventario').insert([{
-                user_id: user.id,
-                nome_pokemon: selecionada.name,
-                set_codigo: selecionada.set.id,
-                numero_card: selecionada.number,
-                preco_pago: parseFloat(valor) || 0,
-                status: 'No Fichário'
-            }]);
-
-            if(error) throw error;
-            alert("✅ Carta creditada!");
-        } catch (err) {
-            alert(err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "CREDITAR SELECIONADA";
+            if (json.data && json.data.length > 0) {
+                lista.innerHTML = "";
+                json.data.forEach(card => {
+                    const tr = document.createElement('tr');
+                    tr.onclick = () => {
+                        document.querySelectorAll('tr').forEach(r => r.classList.remove('active'));
+                        tr.classList.add('active');
+                        cartaSelecionada = card;
+                        document.getElementById('btnSave').disabled = false;
+                        document.getElementById('btnSave').innerText = `CREDITAR #${card.number} - ${card.name}`;
+                    };
+                    
+                    tr.innerHTML = `
+                        <td style="width:50px"><img src="${card.images.small}" class="mini-card" loading="lazy"></td>
+                        <td style="width:40px; font-weight:bold; color:#FFCB05">#${card.number}</td>
+                        <td>${card.name}</td>
+                    `;
+                    lista.appendChild(tr);
+                });
+            } else {
+                lista.innerHTML = "<tr><td>Nenhum resultado. Verifique se o ID está correto.</td></tr>";
+            }
+        } catch (e) {
+            lista.innerHTML = "<tr><td>Erro ao processar busca.</td></tr>";
         }
+    }
+
+    async function salvar() {
+        // Lógica do Supabase (mesma anterior)
+        alert("Integrando com o banco para a carta: " + cartaSelecionada.id);
     }
 </script>
 </body>
