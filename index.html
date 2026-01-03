@@ -3,173 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Pokemon JPN Pro</title>
+    <title>Scanner JPN - Lista Rápida</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #3B4CCA; --success: #2e7d32; --bg: #121212; --card: #1e1e1e; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 450px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #333; }
+        body { font-family: sans-serif; background: #121212; color: white; margin: 0; padding: 10px; }
+        .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 15px; border-radius: 10px; }
         
-        /* Cabeçalho */
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h2 { color: #FFCB05; margin: 0; font-size: 22px; text-shadow: 2px 2px #3B4CCA; }
+        .search-area { display: flex; gap: 5px; margin-bottom: 15px; }
+        input { flex: 1; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 5px; }
+        button { padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .btn-blue { background: #3B4CCA; color: white; }
         
-        /* Busca */
-        .search-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input { background: #000; border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; width: 100%; box-sizing: border-box; outline: none; }
-        input:focus { border-color: var(--primary); }
-        .btn-search { width: 100%; background: var(--primary); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        /* Lista em Tabela para Velocidade */
+        .list-container { max-height: 400px; overflow-y: auto; background: #111; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #222; position: sticky; top: 0; padding: 10px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; }
+        tr:hover { background: #222; }
+        tr.selected { background: #3B4CCA !important; }
+        .thumb { width: 40px; height: auto; border-radius: 2px; background: #333; }
 
-        /* Galeria Rápida */
-        #galeria { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 10px; 
-            margin: 20px 0; 
-            max-height: 400px; 
-            overflow-y: auto; 
-            padding: 10px;
-            background: #111;
-            border-radius: 10px;
-        }
-        .card-item { background: #2a2a2a; padding: 5px; border-radius: 8px; text-align: center; border: 2px solid transparent; transition: 0.2s; cursor: pointer; }
-        .card-item:hover { border-color: var(--primary); }
-        .card-item.selected { border-color: #FFCB05; background: #333; }
-        .card-item img { width: 100%; border-radius: 4px; aspect-ratio: 2/3; background: #333; }
-        .card-item span { font-size: 9px; color: #aaa; display: block; margin-top: 3px; }
-
-        /* Formulário de Salvar */
-        .save-area { border-top: 1px solid #333; padding-top: 20px; margin-top: 10px; }
-        .btn-save { width: 100%; background: var(--success); color: white; border: none; padding: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .btn-save:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        /* Scrollbar Style */
-        #galeria::-webkit-scrollbar { width: 5px; }
-        #galeria::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+        .save-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #444; }
+        .btn-green { width: 100%; background: #2e7d32; color: white; padding: 15px; font-size: 16px; }
+        .btn-green:disabled { opacity: 0.3; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h2>Scanner JPN V2</h2>
-        <p style="font-size: 12px; color: #888;">Busca otimizada para coleções japonesas</p>
+    <h3 style="color:#FFCB05; margin-top:0;">Scanner JPN Lista</h3>
+    
+    <div class="search-area">
+        <input type="text" id="setQuery" placeholder="Nome ou ID (ex: sv8a ou Terastal)">
+        <button class="btn-blue" onclick="buscar()">BUSCAR</button>
     </div>
 
-    <div class="search-box">
-        <input type="text" id="setID" placeholder="Set (ex: sv8a)">
-        <input type="text" id="cardNum" placeholder="Nº (ex: 045)">
+    <div class="list-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Img</th>
+                    <th>Nº</th>
+                    <th>Nome da Carta</th>
+                </tr>
+            </thead>
+            <tbody id="listaCartas">
+                </tbody>
+        </table>
     </div>
-    <button class="btn-search" onclick="buscar()">BUSCAR NA COLEÇÃO</button>
 
-    <div id="galeria">
-        <p style="grid-column: 1/-1; text-align: center; color: #666; font-size: 13px;">Digite o Set para carregar as artes</p>
-    </div>
-
-    <div class="save-area">
-        <label style="font-size: 11px; color: #888;">CLIENTE (E-MAIL)</label>
-        <input type="email" id="userEmail" placeholder="vendedor@email.com" style="margin-bottom: 10px;">
-        
-        <label style="font-size: 11px; color: #888;">VALOR DA VENDA (R$)</label>
-        <input type="number" id="valorVenda" placeholder="0.00">
-
-        <button id="btnSave" class="btn-save" onclick="salvar()" disabled>CREDITAR PARA CLIENTE</button>
+    <div class="save-box">
+        <input type="email" id="email" placeholder="E-mail do Cliente" style="width:100%; margin-bottom:10px; box-sizing:border-box;">
+        <input type="number" id="preco" placeholder="Valor R$" style="width:100%; margin-bottom:10px; box-sizing:border-box;">
+        <button id="btnSave" class="btn-green" onclick="salvar()" disabled>CREDITAR SELECIONADA</button>
     </div>
 </div>
 
 <script>
-    // --- CONFIGURAÇÃO ---
     const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co';
     const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-    let cartaSelecionada = null;
+    let selecionada = null;
 
-    // 1. Busca rápida via API Bridge (Vercel)
     async function buscar() {
-        const set = document.getElementById('setID').value.trim().toLowerCase();
-        let num = document.getElementById('cardNum').value.trim();
-        const galeria = document.getElementById('galeria');
+        const query = document.getElementById('setQuery').value.trim();
+        const lista = document.getElementById('listaCartas');
+        if(!query) return;
 
-        if(!set) return alert("Digite ao menos o código do Set!");
-
-        galeria.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>Carregando miniaturas...</p>";
+        lista.innerHTML = "<tr><td colspan='3' style='text-align:center'>A procurar...</td></tr>";
 
         try {
-            // Chamando sua função em /api/pokemon.js
-            const response = await fetch(`/api/pokemon?set=${set}&num=${num}`);
-            const result = await response.json();
+            // Chamada otimizada para a sua API na Vercel
+            // Usamos 'set' como parâmetro genérico
+            const resp = await fetch(`/api/pokemon?set=${query}`);
+            const result = await resp.json();
 
             if (result.data && result.data.length > 0) {
-                galeria.innerHTML = "";
+                lista.innerHTML = "";
                 result.data.forEach(carta => {
-                    const item = document.createElement('div');
-                    item.className = 'card-item';
-                    item.id = `card-${carta.id}`;
-                    item.onclick = () => clicarCarta(carta);
-                    item.innerHTML = `
-                        <img src="${carta.images.small}" loading="lazy">
-                        <span>#${carta.number}</span>
+                    const tr = document.createElement('tr');
+                    tr.id = `row-${carta.id}`;
+                    tr.onclick = () => {
+                        document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                        tr.classList.add('selected');
+                        selecionada = carta;
+                        document.getElementById('btnSave').disabled = false;
+                        document.getElementById('btnSave').innerText = `CREDITAR #${carta.number}`;
+                    };
+
+                    tr.innerHTML = `
+                        <td><img src="${carta.images.small}" class="thumb" loading="lazy"></td>
+                        <td>${carta.number}</td>
+                        <td>${carta.name}</td>
                     `;
-                    galeria.appendChild(item);
+                    lista.appendChild(tr);
                 });
             } else {
-                galeria.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: red;'>Set não encontrado.</p>";
+                lista.innerHTML = "<tr><td colspan='3' style='text-align:center'>Nada encontrado.</td></tr>";
             }
-        } catch (err) {
-            galeria.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>Erro ao conectar.</p>";
+        } catch (e) {
+            lista.innerHTML = "<tr><td colspan='3' style='text-align:center; color:red'>Erro ao carregar.</td></tr>";
         }
     }
 
-    // 2. Seleção visual
-    function clicarCarta(carta) {
-        // Remove seleção anterior
-        document.querySelectorAll('.card-item').forEach(el => el.classList.remove('selected'));
-        // Adiciona nova seleção
-        document.getElementById(`card-${carta.id}`).classList.add('selected');
-        
-        cartaSelecionada = carta;
-        document.getElementById('btnSave').disabled = false;
-        document.getElementById('btnSave').innerText = `CREDITAR: ${carta.name}`;
-    }
-
-    // 3. Salvar no Supabase
     async function salvar() {
-        const email = document.getElementById('userEmail').value.trim();
-        const valor = document.getElementById('valorVenda').value;
+        const email = document.getElementById('email').value;
+        const valor = document.getElementById('preco').value;
         const btn = document.getElementById('btnSave');
 
-        if(!email) return alert("E-mail do cliente é obrigatório!");
+        if(!email || !selecionada) return alert("Selecione a carta e digite o e-mail!");
 
-        btn.innerText = "Salvando no Banco...";
         btn.disabled = true;
+        btn.innerText = "A guardar...";
 
         try {
-            // Busca o ID do perfil
-            const { data: user, error: userErr } = await _supabase.from('perfis').select('id').eq('email_contato', email).single();
-            
-            if (userErr || !user) throw new Error("Cliente não encontrado.");
+            const { data: user } = await _supabase.from('perfis').select('id').eq('email_contato', email).single();
+            if(!user) throw new Error("Cliente não encontrado.");
 
-            // Insere no inventário
-            const { error: invErr } = await _supabase.from('inventario').insert([{
+            const { error } = await _supabase.from('inventario').insert([{
                 user_id: user.id,
-                nome_pokemon: cartaSelecionada.name,
-                set_codigo: cartaSelecionada.id.split('-')[0],
-                numero_card: cartaSelecionada.number,
+                nome_pokemon: selecionada.name,
+                set_codigo: selecionada.set.id,
+                numero_card: selecionada.number,
                 preco_pago: parseFloat(valor) || 0,
                 status: 'No Fichário'
             }]);
 
-            if (invErr) throw invErr;
-
-            alert("✅ SUCESSO! Carta adicionada ao cliente.");
-            // Reset parcial
-            document.getElementById('valorVenda').value = "";
+            if(error) throw error;
+            alert("✅ Carta creditada!");
         } catch (err) {
-            alert("Erro: " + err.message);
+            alert(err.message);
         } finally {
-            btn.innerText = "CREDITAR PARA CLIENTE";
             btn.disabled = false;
+            btn.innerText = "CREDITAR SELECIONADA";
         }
     }
 </script>
