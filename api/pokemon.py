@@ -8,41 +8,31 @@ class handler(BaseHTTPRequestHandler):
         query_params = parse_qs(urlparse(self.path).query)
         set_id = query_params.get("set", [""])[0].strip()
         
-        api_key = "d18f5a1e-b4db-49ad-841b-6809c5f0515c" 
-
         if not set_id:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'{"error": "Digite um termo de busca"}')
+            self.wfile.write(b'{"error": "Set ID obrigatorio"}')
             return
 
-        api_url = "https://api.pokemontcg.io/v2/cards"
-        
-        # MUDANÇA AQUI: Removemos o "set.id" e usamos apenas "id:TERMO*"
-        # Isso busca qualquer carta que comece com o código que você digitou
+        # Endpoint oficial da documentação: /v1/cards?set_id=XXX
+        api_url = f"https://api.pokemonpricetracker.com/v1/cards"
         params = {
-            "q": f'id:{set_id}*', 
-            "select": "id,name,number,images",
-            "orderBy": "number",
-            "pageSize": "100"
+            "set_id": set_id,
+            "limit": 250  # Traz o set inteiro de uma vez
         }
         
-        headers = {"X-Api-Key": api_key}
-
         try:
-            response = requests.get(api_url, headers=headers, params=params)
+            # Esta API é otimizada para velocidade
+            response = requests.get(api_url, params=params, timeout=10)
             data = response.json()
-
-            # Se não achou nada com ID, tentamos buscar pelo NOME do set
-            if data.get('totalCount') == 0:
-                params["q"] = f'set.name:"{set_id}*"'
-                response = requests.get(api_url, headers=headers, params=params)
-                data = response.json()
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
+            # Cache de 1 hora para performance máxima
+            self.send_header('Cache-Control', 's-maxage=3600')
             self.end_headers()
+
             self.wfile.write(json.dumps(data).encode('utf-8'))
             
         except Exception as e:
