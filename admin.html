@@ -3,120 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Pokemon JPN (Grátis)</title>
+    <title>Scanner Fixo - Admin</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        :root { --blue: #3B4CCA; --gold: #FFCB05; --dark: #121212; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: sans-serif; background: #000; color: white; margin: 0; overflow: hidden; }
         
-        .card-preview { 
-            width: 100%; max-width: 350px; height: 250px; 
-            border: 3px solid var(--blue); border-radius: 15px; 
-            background: #000; display: flex; align-items: center; justify-content: center;
-            overflow: hidden; margin-bottom: 20px;
+        /* Container da Câmera */
+        .camera-container {
+            position: relative;
+            width: 100vw;
+            height: 70vh;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        #imgView { width: 100%; height: 100%; object-fit: contain; display: none; }
-        
-        .btn { 
-            width: 100%; max-width: 350px; padding: 18px; border-radius: 12px; 
-            border: none; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 10px;
+
+        /* O Frame / Moldura */
+        .frame {
+            position: absolute;
+            width: 280px; /* Largura padrão de uma carta */
+            height: 390px; /* Altura padrão */
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            pointer-events: none;
         }
-        .btn-photo { background: var(--blue); color: white; }
-        
-        #status-box { 
-            width: 100%; max-width: 350px; background: #1e1e1e; 
-            padding: 15px; border-radius: 12px; margin-top: 10px; text-align: left;
-            border-left: 4px solid var(--gold); display: none;
+
+        /* Área de Foco no Rodapé (Onde o OCR vai ler) */
+        .focus-area {
+            position: absolute;
+            bottom: 20px;
+            width: 240px;
+            height: 60px;
+            border: 2px solid #FFCB05;
+            background: rgba(255, 203, 5, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #FFCB05;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls { padding: 20px; text-align: center; }
+        .btn-capture {
+            background: #3B4CCA; color: white; border: none;
+            padding: 20px; width: 80%; border-radius: 50px;
+            font-weight: bold; font-size: 18px;
         }
         
-        .loader { color: var(--gold); font-weight: bold; margin: 10px 0; }
-        .result-text { font-size: 20px; color: #fff; display: block; margin-top: 10px; }
-        
-        input[type="file"] { display: none; }
+        #result { margin-top: 15px; color: #FFCB05; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2 style="color: var(--gold)">Scanner Admin JPN</h2>
-    <p style="font-size: 14px; color: #888;">Foque no rodapé (Ex: sv8a 045/180)</p>
-
-    <div class="card-preview">
-        <span id="msg">📷 Foto da Carta</span>
-        <img id="imgView">
+    <div class="camera-container">
+        <div class="frame">
+            <div class="focus-area">Focar Rodapé Aqui</div>
+        </div>
+        <img id="preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
     </div>
 
-    <label for="camera" class="btn btn-photo" style="display: block; text-align: center;">TIRAR FOTO / GALERIA</label>
-    <input type="file" id="camera" accept="image/*" capture="environment">
-
-    <div id="status-box">
-        <div id="loader" class="loader">Aguardando...</div>
-        <div id="result" class="result-text"></div>
-        
-        <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
-        <input type="email" id="cEmail" placeholder="E-mail do Cliente" style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#000; color:white; box-sizing:border-box;">
-        <button onclick="salvar()" class="btn" style="background:#2e7d32; color:white; margin-top:10px; padding:10px;">SALVAR NO SUPABASE</button>
+    <div class="controls">
+        <label for="cameraFile" class="btn-capture" style="display: inline-block; cursor: pointer;">
+            CAPTURAR CARTA
+        </label>
+        <input type="file" id="cameraFile" accept="image/*" capture="environment" style="display: none;">
+        <div id="result">Aguardando posicionamento...</div>
     </div>
 
     <script>
-    const camera = document.getElementById('camera');
-    const imgView = document.getElementById('imgView');
-    const loader = document.getElementById('loader');
-    const result = document.getElementById('result');
-    const statusBox = document.getElementById('status-box');
+        const input = document.getElementById('cameraFile');
+        const result = document.getElementById('result');
+        const preview = document.getElementById('preview');
 
-   camera.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    imgView.src = URL.createObjectURL(file);
-    imgView.style.display = "block";
-    statusBox.style.display = "block";
-    loader.innerText = "🔍 Filtrando números da carta...";
-
-    try {
-        const worker = await Tesseract.createWorker();
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        
-        // Vamos focar em buscar apenas o que parece formato de número de carta
-        const { data: { text } } = await worker.recognize(file);
-        
-        // REGEX MELHORADA: Procura por 3 números, uma barra (ou algo que pareça) e mais 3 números
-        // Também aceita se a barra vier como "1" ou "I" (erro comum de OCR)
-        const regexCarta = /(\d{2,3})[\/|I|1](\d{2,3})/;
-        const match = text.match(regexCarta);
-
-        if (match) {
-            result.innerHTML = `
-                <small>Número Identificado:</small><br>
-                <strong style="font-size:32px; color:#FFCB05">${match[1]}/${match[2]}</strong>
-            `;
-        } else {
-            // Se não achou a barra, tenta pegar os últimos números antes de "2019" ou "2024" (o ano da carta)
-            const numerosSoltos = text.match(/\d{3}/g);
-            const provavel = numerosSoltos ? numerosSoltos[numerosSoltos.length - 1] : "Ver texto bruto";
+            // Mostrar preview
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = "block";
             
-            result.innerHTML = `
-                <small>Não vi a barra (/), mas identifiquei:</small><br>
-                <strong style="font-size:24px; color:#FFCB05">${provavel}</strong>
-                <p style="font-size:12px">Dica: Tire foto apenas da tirinha de baixo!</p>
-            `;
-        }
+            result.innerText = "🔍 Lendo zona de foco...";
 
-        await worker.terminate();
-        loader.innerText = "✅ Leitura concluída";
-    } catch (err) {
-        loader.innerText = "❌ Erro ao processar.";
-    }
-};
-
-    function salvar() {
-        const email = document.getElementById('cEmail').value;
-        const dados = document.getElementById('result').innerText;
-        if(!email) return alert("Digite o e-mail do cliente!");
-        alert("Salvo: " + dados + " para " + email);
-    }
-</script>
-
+            // OCR focado
+            Tesseract.recognize(file, 'eng', {
+                logger: m => console.log(m)
+            }).then(({ data: { text } }) => {
+                // Tenta extrair o padrão XXX/XXX
+                const match = text.match(/\d{3}\/\d{3}/) || text.match(/\d{2,3}/);
+                if(match) {
+                    result.innerHTML = `✅ IDENTIFICADO: ${match[0]}`;
+                } else {
+                    result.innerHTML = `⚠️ Não li o número. Tente ajustar o suporte.`;
+                }
+            });
+        };
+    </script>
 </body>
 </html>
