@@ -45,53 +45,23 @@
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
     let cartaData = null;
 
-    async function buscarCarta() {
-        const set = document.getElementById('setID').value.trim().toLowerCase();
-        let num = document.getElementById('cardNum').value.trim();
-        
-        // Limpa o número: Se for 045/067, pega só o 045
-        if(num.includes('/')) num = num.split('/')[0];
+    async function buscar() {
+    const set = document.getElementById('setID').value.trim().toLowerCase();
+    const num = document.getElementById('cardNum').value.trim();
+    
+    // O ID oficial da API V2 é SET-NUMBER (ex: sv8a-150)
+    const cardId = `${set}-${num}`;
+    
+    // Chamando SUA PRÓPRIA ponte na Vercel
+    const response = await fetch(`/api/get-pokemon?id=${cardId}`);
+    const result = await response.json();
 
-        const info = document.getElementById('cardInfo');
-        const img = document.getElementById('cardImg');
-        const btnSave = document.getElementById('btnSave');
-
-        info.innerHTML = "Buscando...";
-        img.style.display = "none";
-
-        try {
-            // AQUI ESTÁ O SEGREDO: Em vez de /cards/id, usamos a busca por parâmetros
-            // q=set.id:sv8a number:150
-            const query = `set.id:${set} number:${num}`;
-            const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=1`;
-
-            const response = await fetch(url, {
-                headers: { 'X-Api-Key': POKETCG_KEY }
-            });
-
-            const result = await response.json();
-
-            // V2 sempre retorna um array em 'data' quando usamos o endpoint de busca
-            if (result.data && result.data.length > 0) {
-                cartaData = result.data[0]; // Pegamos o primeiro resultado
-                
-                img.src = cartaData.images.small;
-                img.style.display = "block";
-                
-                info.innerHTML = `
-                    <b style="color:#FFCB05">${cartaData.name}</b><br>
-                    <small>${cartaData.set.name}</small><br>
-                    <span style="color:#4caf50">$${cartaData.cardmarket?.prices?.averageSellPrice || '0.00'}</span>
-                `;
-                btnSave.disabled = false;
-            } else {
-                info.innerHTML = "<span style='color:red'>Não encontrada! Verifique o Set.</span>";
-                btnSave.disabled = true;
-            }
-        } catch (e) {
-            info.innerHTML = "Erro na conexão.";
-        }
+    if (result.data) {
+        // Sucesso! O objeto da carta está em result.data
+        document.getElementById('cardImg').src = result.data.images.small;
+        // ... restante do seu código de exibição
     }
+}
 
     async function salvarNoSupabase() {
         const email = document.getElementById('userEmail').value;
