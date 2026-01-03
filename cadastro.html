@@ -5,81 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro | Live Market Pokémon</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f9f9f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 380px; border-top: 6px solid #EE1515; }
-        .logo { text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 22px; text-transform: uppercase; }
-        .logo span { color: #EE1515; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #EE1515; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        button:hover { background: #3B4CCA; }
+        :root { --red: #EE1515; --blue: #3B4CCA; --bg: #f9f9f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 380px; border-top: 6px solid var(--red); }
+        .logo { text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 24px; letter-spacing: -1px; }
+        .logo span { color: var(--red); }
+        h3 { text-align: center; margin-top: 0; color: #333; font-size: 18px; }
+        input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        input:focus { border-color: var(--blue); outline: none; }
+        button { width: 100%; padding: 14px; background: var(--red); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; transition: 0.3s; }
+        button:hover { background: var(--blue); }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        .footer-link { text-align: center; margin-top: 15px; font-size: 13px; color: #666; }
-        .footer-link a { color: #EE1515; text-decoration: none; font-weight: bold; }
+        .footer-link { text-align: center; margin-top: 20px; font-size: 14px; color: #666; }
+        .footer-link a { color: var(--red); text-decoration: none; font-weight: bold; }
+        #msg { text-align: center; font-size: 13px; margin-top: 10px; min-height: 20px; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <div class="logo"><span>LIVE</span> MARKET</div>
-    <h3 style="text-align: center; margin-top: 0;">CRIAR CONTA</h3>
+    <h3>CRIAR CONTA</h3>
     
     <form id="formCadastro">
         <input type="text" id="nome" placeholder="Nome Completo" required>
-        <input type="email" id="email" placeholder="Seu melhor e-mail" required>
-        <input type="password" id="senha" placeholder="Senha (mín. 6 dígitos)" required>
-        <button type="submit" id="btnCadastrar">Cadastrar Agora</button>
+        <input type="email" id="email" placeholder="E-mail" required>
+        <input type="password" id="senha" placeholder="Senha (mín. 6 dígitos)" required minlength="6">
+        <button type="submit" id="btnAcao">Finalizar Cadastro</button>
     </form>
+    
+    <div id="msg"></div>
 
     <div class="footer-link">
-        Já é da elite? <a href="index.html">Faça Login</a>
+        Já possui conta? <a href="index.html">Fazer Login</a>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-    // Configurações do seu projeto
+    // --- CONFIGURAÇÃO (Confirme se seus dados estão corretos) ---
     const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co'; 
     const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
     const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
     const form = document.getElementById('formCadastro');
-    const btn = document.getElementById('btnCadastrar');
+    const btn = document.getElementById('btnAcao');
+    const msg = document.getElementById('msg');
 
     form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    btn.disabled = true;
-    btn.innerText = "Processando...";
+        e.preventDefault();
+        
+        // Bloqueia o botão para evitar cliques duplos (causa erro de duplicata)
+        btn.disabled = true;
+        btn.innerText = "CRIANDO CONTA...";
+        msg.innerText = "";
 
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('senha').value;
-    const nome = document.getElementById('nome').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('senha').value;
+        const nome = document.getElementById('nome').value;
 
-    try {
-        // 1. CRIAR CONTA NO AUTH 
-        // A Trigger no Supabase vai detectar isso e criar o perfil sozinha!
-        const { data, error } = await supabaseClient.auth.signUp({
-            email: email,
-            password: password,
-            options: {
-                data: { full_name: nome } // A Trigger usa esse campo 'full_name'
-            }
-        });
+        try {
+            // 1. CRIAR USUÁRIO NO AUTH
+            // O segredo está no 'full_name' dentro de data. A Trigger lerá isso.
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    data: { full_name: nome } 
+                }
+            });
 
-        if (error) throw error;
+            if (error) throw error;
 
-        alert("Cadastro realizado com sucesso!");
-        window.location.href = "index.html"; 
+            // Se chegou aqui, o Auth criou o user E a Trigger criou o perfil
+            msg.style.color = "green";
+            msg.innerText = "Sucesso! Redirecionando...";
+            
+            setTimeout(() => {
+                window.location.href = "index.html"; 
+            }, 2000);
 
-    } catch (error) {
-        alert("Erro no cadastro: " + error.message);
-        console.error(error);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Cadastrar Agora";
-    }
-});
+        } catch (error) {
+            msg.style.color = "red";
+            msg.innerText = "Erro: " + error.message;
+            btn.disabled = false;
+            btn.innerText = "FINALIZAR CADASTRO";
+            console.error("Erro detalhado:", error);
+        }
+    });
 </script>
+
 </body>
 </html>
