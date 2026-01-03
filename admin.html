@@ -3,123 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Pokemon JPN - Debug Mode</title>
+    <title>Scanner Local (Sem Custo)</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .preview-box { width: 100%; max-width: 400px; height: 300px; border: 2px solid #3B4CCA; border-radius: 15px; margin: auto; background: #1a1a1a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .preview-box { width: 100%; max-width: 400px; height: 300px; border: 2px solid #3B4CCA; border-radius: 15px; margin: auto; overflow: hidden; background: #000; position: relative; }
         #imgPreview { width: 100%; height: 100%; object-fit: contain; display: none; }
         .btn { display: block; width: 100%; padding: 15px; margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .btn-blue { background: #3B4CCA; color: white; }
-        .btn-gold { background: #FFCB05; color: black; }
-        #status { margin-top: 15px; color: #FFCB05; font-size: 14px; min-height: 20px; }
-        #debug { font-size: 10px; color: #555; margin-top: 20px; word-break: break-all; text-align: left; }
+        #status { margin-top: 20px; color: #FFCB05; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2>Scanner Admin</h2>
+    <h2>Scanner Admin (Local)</h2>
     <div class="preview-box">
-        <span id="label">📷 Foto da Carta</span>
         <img id="imgPreview">
+        <span id="label">📷 Foto da Carta</span>
     </div>
 
     <label for="fileInput" class="btn btn-blue">TIRAR FOTO</label>
     <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
 
-    <button id="scanBtn" class="btn btn-gold" style="display:none" onclick="processarComGoogle()">ANALISAR AGORA</button>
-
     <div id="status"></div>
-    <div id="debug"></div>
 
     <script>
-        const API_KEY = "AIzaSyAGiv9l75QyhNdfYQoVPMJUgRBZ4fNzWi0";
         const fileInput = document.getElementById('fileInput');
         const imgPreview = document.getElementById('imgPreview');
-        const scanBtn = document.getElementById('scanBtn');
         const status = document.getElementById('status');
-        const debug = document.getElementById('debug');
 
-        let base64Image = "";
-
-        fileInput.onchange = (e) => {
+        fileInput.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Redimensionar a imagem para não ficar pesada demais
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1000; // Reduzimos para o Google ler melhor
-                    let width = img.width;
-                    let height = img.height;
+            status.innerText = "⌛ Carregando imagem...";
+            imgPreview.src = URL.createObjectURL(file);
+            imgPreview.style.display = "block";
+            document.getElementById('label').style.display = "none";
 
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_WIDTH) {
-                            width *= MAX_WIDTH / height;
-                            height = MAX_WIDTH;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-                    imgPreview.src = canvas.toDataURL('image/jpeg');
-                    imgPreview.style.display = "block";
-                    document.getElementById('label').style.display = "none";
-                    scanBtn.style.display = "block";
-                    status.innerText = "Imagem otimizada! Clique em Analisar.";
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
+            status.innerText = "🔍 Lendo carta (aguarde 5-10s)...";
+
+            // O Tesseract processa tudo no seu celular
+            Tesseract.recognize(file, 'eng', {
+                logger: m => { if(m.status === 'recognizing text') status.innerText = `Lendo: ${Math.round(m.progress * 100)}%`; }
+            }).then(({ data: { text } }) => {
+                console.log("Texto:", text);
+                
+                // Procura o padrão de número da carta (ex: 045/180)
+                const match = text.match(/\d{3}\/\d{3}/);
+                const result = match ? match[0] : "Número não detectado";
+
+                status.innerHTML = `✅ FIM!<br><br>Detectado: <span style="font-size:24px">${result}</span><br><br><small>Texto bruto: ${text.substring(0,50)}...</small>`;
+            }).catch(err => {
+                status.innerText = "Erro ao processar.";
+                console.error(err);
+            });
         };
-
-        async function processarComGoogle() {
-            status.innerText = "⏳ Enviando para o Google...";
-            scanBtn.disabled = true;
-
-            const url = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
-            const payload = {
-                requests: [{
-                    image: { content: base64Image },
-                    features: [{ type: "TEXT_DETECTION" }, { type: "DOCUMENT_TEXT_DETECTION" }]
-                }]
-            };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const data = await response.json();
-                
-                // DEBUG: Vamos ver o que o Google respondeu no final da página
-                debug.innerText = "Resposta Bruta: " + JSON.stringify(data).substring(0, 500);
-
-                if (data.responses && data.responses[0].fullTextAnnotation) {
-                    const texto = data.responses[0].fullTextAnnotation.text;
-                    status.innerHTML = `<div style="background:#2e7d32; padding:10px; border-radius:5px;">✅ LIDO COM SUCESSO!</div><br>Texto: ${texto}`;
-                } else {
-                    status.innerText = "❌ Google não achou texto. Tente aproximar mais do rodapé.";
-                    scanBtn.disabled = false;
-                }
-            } catch (err) {
-                status.innerText = "❌ Erro de conexão. Verifique sua Internet.";
-                debug.innerText = "Erro: " + err.message;
-                scanBtn.disabled = false;
-            }
-        }
     </script>
 </body>
 </html>
