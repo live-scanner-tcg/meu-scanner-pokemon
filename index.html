@@ -2,48 +2,49 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner JPN - Doc Verified</title>
+    <title>Scanner JPN - Price Tracker Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 15px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
-        .search-bar { display: flex; gap: 8px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 6px; }
-        button { padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-search { background: #3B4CCA; color: white; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 8px; }
+        button { padding: 12px 20px; background: #3B4CCA; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         
-        .list-box { background: #1e1e1e; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        /* Lista em Tabela - Ultra Rápida */
+        .card-list { background: #1e1e1e; border-radius: 10px; overflow: hidden; border: 1px solid #333; }
         table { width: 100%; border-collapse: collapse; }
         td { padding: 10px; border-bottom: 1px solid #333; font-size: 14px; cursor: pointer; }
         tr:hover { background: #252525; }
-        tr.active { background: #3B4CCA !important; }
-        .mini-card { width: 45px; height: 63px; background: #333; border-radius: 3px; display: block; object-fit: cover; }
-        
-        .save-panel { margin-top: 20px; padding: 15px; background: #222; border-radius: 8px; }
-        .btn-save { width: 100%; background: #2e7d32; color: white; padding: 15px; margin-top: 10px; }
-        .btn-save:disabled { opacity: 0.2; }
+        tr.selected { background: #3B4CCA !important; }
+        .thumb { width: 45px; height: 63px; object-fit: cover; border-radius: 4px; background: #333; }
+
+        .save-area { margin-top: 20px; padding: 15px; background: #222; border-radius: 10px; }
+        .btn-save { width: 100%; background: #2e7d32; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        .btn-save:disabled { opacity: 0.2; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="search-bar">
-        <input type="text" id="setInput" placeholder="ID exato (ex: sv8a, sv2a, s12a)">
-        <button class="btn-search" onclick="buscar()">BUSCAR</button>
+    <h2 style="color: #FFCB05">Scanner JPN (Price Tracker)</h2>
+    <div class="search-box">
+        <input type="text" id="setID" placeholder="ID do Set (ex: sv8a, s12a)">
+        <button onclick="buscar()">BUSCAR</button>
     </div>
 
-    <div class="list-box">
+    <div class="card-list">
         <table>
-            <tbody id="lista">
-                <tr><td style="text-align:center">Aguardando ID da coleção...</td></tr>
+            <tbody id="listaBody">
+                <tr><td style="text-align:center">Digite um Set ID para começar.</td></tr>
             </tbody>
         </table>
     </div>
 
-    <div class="save-panel">
-        <input type="email" id="email" placeholder="E-mail do Cliente" style="width:100%; box-sizing:border-box; margin-bottom:10px">
-        <input type="number" id="valor" placeholder="Preço (R$)" style="width:100%; box-sizing:border-box;">
-        <button id="btnSave" class="btn-save" onclick="salvar()" disabled>CREDITAR CARTA</button>
+    <div class="save-area">
+        <input type="email" id="email" placeholder="E-mail do Cliente" style="width:100%; margin-bottom:10px; box-sizing:border-box; padding: 10px; background: #000; color: white; border: 1px solid #444;">
+        <input type="number" id="valor" placeholder="Valor (R$)" style="width:100%; box-sizing:border-box; padding: 10px; background: #000; color: white; border: 1px solid #444;">
+        <button id="btnSave" class="btn-save" onclick="salvar()" disabled>SELECIONE UMA CARTA</button>
     </div>
 </div>
 
@@ -51,46 +52,49 @@
     let cartaSelecionada = null;
 
     async function buscar() {
-        const setId = document.getElementById('setInput').value.trim().toLowerCase();
-        const lista = document.getElementById('lista');
-        if(!setId) return;
+        const set = document.getElementById('setID').value.trim();
+        const body = document.getElementById('listaBody');
+        if(!set) return;
 
-        lista.innerHTML = "<tr><td>Carregando dados da documentação...</td></tr>";
+        body.innerHTML = "<tr><td style='text-align:center'>Consultando base de dados...</td></tr>";
 
         try {
-            const resp = await fetch(`/api/pokemon?set=${setId}`);
-            const json = await resp.json();
+            const response = await fetch(`/api/pokemon?set=${set}`);
+            const data = await response.json();
 
-            if (json.data && json.data.length > 0) {
-                lista.innerHTML = "";
-                json.data.forEach(card => {
+            // De acordo com a documentação, os resultados podem vir em 'results' ou lista direta
+            const cartas = data.results || data;
+
+            if (cartas && cartas.length > 0) {
+                body.innerHTML = "";
+                cartas.forEach(card => {
                     const tr = document.createElement('tr');
                     tr.onclick = () => {
-                        document.querySelectorAll('tr').forEach(r => r.classList.remove('active'));
-                        tr.classList.add('active');
+                        document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                        tr.classList.add('selected');
                         cartaSelecionada = card;
                         document.getElementById('btnSave').disabled = false;
-                        document.getElementById('btnSave').innerText = `CREDITAR #${card.number} - ${card.name}`;
+                        document.getElementById('btnSave').innerText = `SALVAR #${card.number} - ${card.name}`;
                     };
-                    
+
                     tr.innerHTML = `
-                        <td style="width:50px"><img src="${card.images.small}" class="mini-card" loading="lazy"></td>
-                        <td style="width:40px; font-weight:bold; color:#FFCB05">#${card.number}</td>
+                        <td style="width:50px"><img src="${card.image_url}" class="thumb" loading="lazy"></td>
+                        <td style="width:60px; font-weight:bold; color:#FFCB05">#${card.number}</td>
                         <td>${card.name}</td>
                     `;
-                    lista.appendChild(tr);
+                    body.appendChild(tr);
                 });
             } else {
-                lista.innerHTML = "<tr><td>Nenhum resultado. Verifique se o ID está correto.</td></tr>";
+                body.innerHTML = "<tr><td style='text-align:center'>Nenhuma carta encontrada. Verifique o ID.</td></tr>";
             }
         } catch (e) {
-            lista.innerHTML = "<tr><td>Erro ao processar busca.</td></tr>";
+            body.innerHTML = "<tr><td style='text-align:center; color:red'>Erro ao conectar com a API.</td></tr>";
         }
     }
 
     async function salvar() {
-        // Lógica do Supabase (mesma anterior)
-        alert("Integrando com o banco para a carta: " + cartaSelecionada.id);
+        // Aqui entra a sua lógica do Supabase usando 'cartaSelecionada'
+        alert("Carta " + cartaSelecionada.name + " pronta para ser salva!");
     }
 </script>
 </body>
