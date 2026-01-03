@@ -2,179 +2,123 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Admin Scanner JPN - Google Vision</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Pokemon JPN - Debug Mode</title>
     <style>
-        :root { --primary: #3B4CCA; --accent: #FFCB05; --bg: #0f0f0f; --card: #1e1e1e; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
-        
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h2 { color: var(--accent); margin-bottom: 5px; }
-        
-        /* Container da Foto */
-        .preview-box { 
-            width: 100%; height: 280px; background: #1a1a1a; 
-            border: 2px solid var(--primary); border-radius: 15px; 
-            display: flex; align-items: center; justify-content: center; 
-            overflow: hidden; position: relative; margin-bottom: 15px;
-        }
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .preview-box { width: 100%; max-width: 400px; height: 300px; border: 2px solid #3B4CCA; border-radius: 15px; margin: auto; background: #1a1a1a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #imgPreview { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .placeholder-text { color: #555; text-align: center; }
-
-        /* Botões */
-        .btn { 
-            display: block; width: 100%; padding: 15px; border: none; 
-            border-radius: 10px; font-weight: bold; font-size: 16px; 
-            cursor: pointer; transition: 0.2s; text-align: center; box-sizing: border-box;
-        }
-        .btn-camera { background: var(--primary); color: white; margin-bottom: 10px; }
-        .btn-scan { background: var(--accent); color: black; display: none; margin-bottom: 10px; }
-        .btn-save { background: #2e7d32; color: white; }
-        .btn:active { transform: scale(0.98); }
-
-        /* Painel de Resultados */
-        .result-panel { 
-            background: var(--card); padding: 20px; border-radius: 15px; 
-            margin-top: 20px; display: none; border: 1px solid #333; 
-        }
-        .data-detected { color: var(--accent); font-family: monospace; font-size: 1.1em; background: #000; padding: 10px; border-radius: 5px; }
-        
-        input { 
-            width: 100%; padding: 12px; margin: 10px 0; background: #000; 
-            border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; 
-        }
-        
-        #status { font-size: 14px; text-align: center; margin-top: 10px; color: #aaa; }
+        .btn { display: block; width: 100%; padding: 15px; margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-blue { background: #3B4CCA; color: white; }
+        .btn-gold { background: #FFCB05; color: black; }
+        #status { margin-top: 15px; color: #FFCB05; font-size: 14px; min-height: 20px; }
+        #debug { font-size: 10px; color: #555; margin-top: 20px; word-break: break-all; text-align: left; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2>Scanner Admin</h2>
-        <small>Identificador de Cartas Japonesas</small>
-    </div>
-
+    <h2>Scanner Admin</h2>
     <div class="preview-box">
-        <span class="placeholder-text" id="label">📷 Aponte para o rodapé da carta</span>
+        <span id="label">📷 Foto da Carta</span>
         <img id="imgPreview">
     </div>
 
-    <label for="fileInput" class="btn btn-camera">TIRAR FOTO DA CARTA</label>
+    <label for="fileInput" class="btn btn-blue">TIRAR FOTO</label>
     <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
 
-    <button id="scanBtn" class="btn btn-scan" onclick="processarComGoogle()">🔍 ANALISAR AGORA</button>
+    <button id="scanBtn" class="btn btn-gold" style="display:none" onclick="processarComGoogle()">ANALISAR AGORA</button>
 
     <div id="status"></div>
-
-    <div id="resultPanel" class="result-panel">
-        <h3 style="margin-top:0">Dados Encontrados:</h3>
-        <div id="resText" class="data-detected">...</div>
-        
-        <hr style="border:0; border-top: 1px solid #333; margin: 20px 0;">
-        
-        <label>E-mail do Cliente:</label>
-        <input type="email" id="clientEmail" placeholder="cliente@email.com">
-        
-        <label>Preço Sugerido (R$):</label>
-        <input type="number" id="cardVal" placeholder="Ex: 50.00">
-        
-        <button class="btn btn-save" onclick="salvarNoSupabase()">ENVIAR PARA USUÁRIO</button>
-    </div>
+    <div id="debug"></div>
 
     <script>
-        // SUA API KEY JÁ CONFIGURADA
-        const API_KEY = "AIzaSyAGiv9l75QyhNdfYQoVPMJUgRBZ4fNzWi0"; 
-        
+        const API_KEY = "AIzaSyAGiv9l75QyhNdfYQoVPMJUgRBZ4fNzWi0";
         const fileInput = document.getElementById('fileInput');
         const imgPreview = document.getElementById('imgPreview');
         const scanBtn = document.getElementById('scanBtn');
         const status = document.getElementById('status');
-        const resultPanel = document.getElementById('resultPanel');
+        const debug = document.getElementById('debug');
 
         let base64Image = "";
 
-        // Captura a imagem do celular
         fileInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
+            // Redimensionar a imagem para não ficar pesada demais
             const reader = new FileReader();
-            reader.onload = () => {
-                base64Image = reader.result.split(',')[1];
-                imgPreview.src = reader.result;
-                imgPreview.style.display = "block";
-                document.getElementById('label').style.display = "none";
-                scanBtn.style.display = "block";
-                resultPanel.style.display = "none";
-                status.innerText = "Foto pronta para análise!";
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1000; // Reduzimos para o Google ler melhor
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_WIDTH) {
+                            width *= MAX_WIDTH / height;
+                            height = MAX_WIDTH;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                    imgPreview.src = canvas.toDataURL('image/jpeg');
+                    imgPreview.style.display = "block";
+                    document.getElementById('label').style.display = "none";
+                    scanBtn.style.display = "block";
+                    status.innerText = "Imagem otimizada! Clique em Analisar.";
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         };
 
-        // Envia para o Google Vision
         async function processarComGoogle() {
-            status.innerText = "⏳ Google Vision identificando texto...";
+            status.innerText = "⏳ Enviando para o Google...";
             scanBtn.disabled = true;
-            scanBtn.style.opacity = "0.5";
 
             const url = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
-            
             const payload = {
-    requests: [{
-        image: { content: base64Image },
-        features: [
-            { type: "TEXT_DETECTION" },
-            { type: "DOCUMENT_TEXT_DETECTION" } // Adicione isso aqui!
-        ]
-    }]
-};
+                requests: [{
+                    image: { content: base64Image },
+                    features: [{ type: "TEXT_DETECTION" }, { type: "DOCUMENT_TEXT_DETECTION" }]
+                }]
+            };
 
             try {
                 const response = await fetch(url, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await response.json();
-                console.log("Resposta do Google:", data);
                 
+                const data = await response.json();
+                
+                // DEBUG: Vamos ver o que o Google respondeu no final da página
+                debug.innerText = "Resposta Bruta: " + JSON.stringify(data).substring(0, 500);
+
                 if (data.responses && data.responses[0].fullTextAnnotation) {
-                    const textoDetectado = data.responses[0].fullTextAnnotation.text;
-                    exibirResultado(textoDetectado);
+                    const texto = data.responses[0].fullTextAnnotation.text;
+                    status.innerHTML = `<div style="background:#2e7d32; padding:10px; border-radius:5px;">✅ LIDO COM SUCESSO!</div><br>Texto: ${texto}`;
                 } else {
-                    status.innerText = "❌ Nenhum texto encontrado. Tente focar no rodapé.";
+                    status.innerText = "❌ Google não achou texto. Tente aproximar mais do rodapé.";
                     scanBtn.disabled = false;
-                    scanBtn.style.opacity = "1";
                 }
             } catch (err) {
-                status.innerText = "❌ Erro na conexão com Google.";
+                status.innerText = "❌ Erro de conexão. Verifique sua Internet.";
+                debug.innerText = "Erro: " + err.message;
                 scanBtn.disabled = false;
-                scanBtn.style.opacity = "1";
             }
-        }
-
-        // Exibe o que o Google "leu" na carta
-        function exibirResultado(texto) {
-            status.innerText = "✅ Identificação concluída!";
-            resultPanel.style.display = "block";
-            
-            // Tenta achar padrões de números como 045/180
-            const regexNumero = /\d{3}\/\d{3}/;
-            const match = texto.match(regexNumero);
-            const numeroIdentificado = match ? match[0] : "Número não visível";
-
-            document.getElementById('resText').innerText = `ID/Nº: ${numeroIdentificado}\nTexto: ${texto.substring(0, 50)}...`;
-            
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }
-
-        function salvarNoSupabase() {
-            const email = document.getElementById('clientEmail').value;
-            if (!email) {
-                alert("Por favor, digite o e-mail do cliente.");
-                return;
-            }
-            // Aqui integraremos com seu código do Supabase
-            alert("Sucesso! Dados prontos para o banco de dados.");
         }
     </script>
 </body>
