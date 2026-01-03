@@ -2,68 +2,72 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner JPN - Busca por Nome</title>
+    <title>Scanner Pokemon JPN</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; padding: 15px; }
-        .search-box { display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; background: #121212; padding: 10px 0; }
-        input { flex: 1; padding: 12px; border-radius: 5px; border: 1px solid #444; background: #000; color: white; }
-        button { padding: 12px; background: #3B4CCA; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
+        .search-area { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: white; }
+        button { padding: 12px 20px; background: #3B4CCA; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; }
-        .card { background: #1e1e1e; padding: 8px; border-radius: 10px; text-align: center; border: 2px solid transparent; }
-        .card:active { border-color: #FFCB05; background: #222; }
-        .card img { width: 100%; border-radius: 5px; }
-        .card-info { font-size: 11px; color: #aaa; margin-top: 5px; }
-        .set-badge { font-size: 9px; color: #3B4CCA; font-weight: bold; display: block; margin-top: 2px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .card { background: #1e1e1e; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .card:hover { border-color: #FFCB05; transform: translateY(-5px); }
+        .card img { width: 100%; border-radius: 8px; margin-bottom: 8px; }
+        .card-info { font-size: 12px; }
+        .set-name { font-size: 10px; color: #888; display: block; margin-top: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="search-box">
-        <input type="text" id="searchTerm" placeholder="Nome do Set (ex: 151, Terastal, VSTAR)">
+    <div class="search-area">
+        <input type="text" id="searchInput" placeholder="ID ou Nome (ex: sv8a ou Terastal)">
         <button onclick="buscar()">BUSCAR</button>
     </div>
 
-    <div id="status"></div>
     <div id="grid" class="grid"></div>
 
-<script>
-    async function buscar() {
-        const termo = document.getElementById('searchTerm').value.trim();
-        const grid = document.getElementById('grid');
-        const status = document.getElementById('status');
+    <script>
+        async function buscar() {
+            const termo = document.getElementById('searchInput').value.trim();
+            const grid = document.getElementById('grid');
+            if(!termo) return;
 
-        if(!termo) return;
-        grid.innerHTML = "";
-        status.innerText = "Procurando coleções...";
+            grid.innerHTML = "<p>Buscando cartas...</p>";
 
-        try {
-            const resp = await fetch(`/api/pokemon?q=${termo}`);
-            const result = await resp.json();
+            try {
+                // AQUI ESTÁ O SEGREDO: Enviamos ?q=termo para bater com o API.js
+                const response = await fetch(`/api/pokemon?q=${encodeURIComponent(termo)}`);
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Erro 400');
+                }
 
-            if (result.data && result.data.length > 0) {
-                status.innerText = `${result.data.length} cartas encontradas.`;
-                result.data.forEach(card => {
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    div.onclick = () => alert(`Selecionado: ${card.name} (${card.set.id})`);
-                    
-                    div.innerHTML = `
-                        <img src="${card.images.small}" loading="lazy">
-                        <div class="card-info">
-                            <b>#${card.number}</b> ${card.name}
-                            <span class="set-badge">${card.set.name}</span>
-                        </div>
-                    `;
-                    grid.appendChild(div);
-                });
-            } else {
-                status.innerText = "Nada encontrado. Tente um nome mais simples.";
+                const result = await response.json();
+
+                if (result.data && result.data.length > 0) {
+                    grid.innerHTML = "";
+                    result.data.forEach(card => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.innerHTML = `
+                            <img src="${card.images.small}" loading="lazy">
+                            <div class="card-info">
+                                <b>#${card.number}</b><br>${card.name}
+                                <span class="set-name">${card.set.name}</span>
+                            </div>
+                        `;
+                        div.onclick = () => alert("Selecionada: " + card.name);
+                        grid.appendChild(div);
+                    });
+                } else {
+                    grid.innerHTML = "<p>Nenhuma carta encontrada. Tente outro termo.</p>";
+                }
+            } catch (error) {
+                grid.innerHTML = `<p style="color:red">Erro: ${error.message}</p>`;
+                console.error(error);
             }
-        } catch (e) {
-            status.innerText = "Erro ao conectar. Verifique se o arquivo api/pokemon.js está correto.";
         }
-    }
-</script>
+    </script>
 </body>
 </html>
