@@ -64,69 +64,51 @@
     const result = document.getElementById('result');
     const statusBox = document.getElementById('status-box');
 
-    camera.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+   camera.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        // Interface
-        imgView.src = URL.createObjectURL(file);
-        imgView.style.display = "block";
-        document.getElementById('msg').style.display = "none";
-        statusBox.style.display = "block";
-        loader.innerText = "🔍 Preparando imagem...";
-        result.innerText = "";
+    imgView.src = URL.createObjectURL(file);
+    imgView.style.display = "block";
+    statusBox.style.display = "block";
+    loader.innerText = "🔍 Filtrando números da carta...";
 
-        try {
-            // Criar um Worker (processador) com foco em números
-            const worker = await Tesseract.createWorker({
-                logger: m => {
-                    if(m.status === 'recognizing text') {
-                        loader.innerText = `Lendo Carta: ${Math.round(m.progress * 100)}%`;
-                    }
-                }
-            });
+    try {
+        const worker = await Tesseract.createWorker();
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        
+        // Vamos focar em buscar apenas o que parece formato de número de carta
+        const { data: { text } } = await worker.recognize(file);
+        
+        // REGEX MELHORADA: Procura por 3 números, uma barra (ou algo que pareça) e mais 3 números
+        // Também aceita se a barra vier como "1" ou "I" (erro comum de OCR)
+        const regexCarta = /(\d{2,3})[\/|I|1](\d{2,3})/;
+        const match = text.match(regexCarta);
 
-            await worker.loadLanguage('eng');
-            await worker.initialize('eng');
-            
-            // Configuração agressiva para cartas: aceita apenas números, letras e barras
-            await worker.setParameters({
-                tessedit_char_whitelist: '0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-                tessedit_pageseg_mode: '11', // Modo que procura texto em qualquer lugar da foto
-            });
-
-            const { data: { text } } = await worker.recognize(file);
-            console.log("Texto Bruto encontrado:", text);
-
-            // Tenta achar o número da carta de várias formas:
-            // 1. Padrão 000/000
-            // 2. Apenas números seguidos (caso ele não veja a barra)
-            const padrao1 = text.match(/\d{3}\/\d{3}/);
-            const padrao2 = text.match(/\d{2,3}/g); // Pega grupos de 2 ou 3 números
-            
-            let finalId = "Não identificado";
-            
-            if (padrao1) {
-                finalId = padrao1[0];
-            } else if (padrao2 && padrao2.length >= 1) {
-                // Se ele achou números soltos, vamos tentar montar o código
-                finalId = padrao2.join(' '); 
-            }
-
-            loader.innerText = "✅ Análise Finalizada";
+        if (match) {
             result.innerHTML = `
-                <small style="color:#888;">Número Detectado:</small><br>
-                <strong style="font-size:28px; color:#FFCB05">${finalId}</strong>
-                <hr style="border:0; border-top:1px solid #333">
-                <small style="font-size:10px; color:#555">Texto bruto lido: ${text.replace(/\n/g, ' ')}</small>
+                <small>Número Identificado:</small><br>
+                <strong style="font-size:32px; color:#FFCB05">${match[1]}/${match[2]}</strong>
             `;
-
-            await worker.terminate();
-        } catch (err) {
-            loader.innerText = "❌ Erro no processamento.";
-            console.error(err);
+        } else {
+            // Se não achou a barra, tenta pegar os últimos números antes de "2019" ou "2024" (o ano da carta)
+            const numerosSoltos = text.match(/\d{3}/g);
+            const provavel = numerosSoltos ? numerosSoltos[numerosSoltos.length - 1] : "Ver texto bruto";
+            
+            result.innerHTML = `
+                <small>Não vi a barra (/), mas identifiquei:</small><br>
+                <strong style="font-size:24px; color:#FFCB05">${provavel}</strong>
+                <p style="font-size:12px">Dica: Tire foto apenas da tirinha de baixo!</p>
+            `;
         }
-    };
+
+        await worker.terminate();
+        loader.innerText = "✅ Leitura concluída";
+    } catch (err) {
+        loader.innerText = "❌ Erro ao processar.";
+    }
+};
 
     function salvar() {
         const email = document.getElementById('cEmail').value;
