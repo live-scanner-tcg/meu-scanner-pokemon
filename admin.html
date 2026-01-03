@@ -2,63 +2,123 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Local (Sem Custo)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scanner Pokemon JPN (Grátis)</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .preview-box { width: 100%; max-width: 400px; height: 300px; border: 2px solid #3B4CCA; border-radius: 15px; margin: auto; overflow: hidden; background: #000; position: relative; }
-        #imgPreview { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .btn { display: block; width: 100%; padding: 15px; margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        .btn-blue { background: #3B4CCA; color: white; }
-        #status { margin-top: 20px; color: #FFCB05; font-weight: bold; }
+        :root { --blue: #3B4CCA; --gold: #FFCB05; --dark: #121212; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .card-preview { 
+            width: 100%; max-width: 350px; height: 250px; 
+            border: 3px solid var(--blue); border-radius: 15px; 
+            background: #000; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; margin-bottom: 20px;
+        }
+        #imgView { width: 100%; height: 100%; object-fit: contain; display: none; }
+        
+        .btn { 
+            width: 100%; max-width: 350px; padding: 18px; border-radius: 12px; 
+            border: none; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 10px;
+        }
+        .btn-photo { background: var(--blue); color: white; }
+        
+        #status-box { 
+            width: 100%; max-width: 350px; background: #1e1e1e; 
+            padding: 15px; border-radius: 12px; margin-top: 10px; text-align: left;
+            border-left: 4px solid var(--gold); display: none;
+        }
+        
+        .loader { color: var(--gold); font-weight: bold; margin: 10px 0; }
+        .result-text { font-size: 20px; color: #fff; display: block; margin-top: 10px; }
+        
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 
-    <h2>Scanner Admin (Local)</h2>
-    <div class="preview-box">
-        <img id="imgPreview">
-        <span id="label">📷 Foto da Carta</span>
+    <h2 style="color: var(--gold)">Scanner Admin JPN</h2>
+    <p style="font-size: 14px; color: #888;">Foque no rodapé (Ex: sv8a 045/180)</p>
+
+    <div class="card-preview">
+        <span id="msg">📷 Foto da Carta</span>
+        <img id="imgView">
     </div>
 
-    <label for="fileInput" class="btn btn-blue">TIRAR FOTO</label>
-    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
+    <label for="camera" class="btn btn-photo" style="display: block; text-align: center;">TIRAR FOTO / GALERIA</label>
+    <input type="file" id="camera" accept="image/*" capture="environment">
 
-    <div id="status"></div>
+    <div id="status-box">
+        <div id="loader" class="loader">Aguardando...</div>
+        <div id="result" class="result-text"></div>
+        
+        <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+        <input type="email" id="cEmail" placeholder="E-mail do Cliente" style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#000; color:white; box-sizing:border-box;">
+        <button onclick="salvar()" class="btn" style="background:#2e7d32; color:white; margin-top:10px; padding:10px;">SALVAR NO SUPABASE</button>
+    </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const imgPreview = document.getElementById('imgPreview');
-        const status = document.getElementById('status');
+        const camera = document.getElementById('camera');
+        const imgView = document.getElementById('imgView');
+        const loader = document.getElementById('loader');
+        const result = document.getElementById('result');
+        const statusBox = document.getElementById('status-box');
 
-        fileInput.onchange = async (e) => {
+        camera.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            status.innerText = "⌛ Carregando imagem...";
-            imgPreview.src = URL.createObjectURL(file);
-            imgPreview.style.display = "block";
-            document.getElementById('label').style.display = "none";
+            // Interface
+            imgView.src = URL.createObjectURL(file);
+            imgView.style.display = "block";
+            document.getElementById('msg').style.display = "none";
+            statusBox.style.display = "block";
+            loader.innerText = "🔍 Processando imagem...";
+            result.innerText = "";
 
-            status.innerText = "🔍 Lendo carta (aguarde 5-10s)...";
+            // O Tesseract trabalha aqui
+            try {
+                const worker = await Tesseract.createWorker({
+                    logger: m => {
+                        if(m.status === 'recognizing text') {
+                            loader.innerText = `Lendo Carta: ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
 
-            // O Tesseract processa tudo no seu celular
-            Tesseract.recognize(file, 'eng', {
-                logger: m => { if(m.status === 'recognizing text') status.innerText = `Lendo: ${Math.round(m.progress * 100)}%`; }
-            }).then(({ data: { text } }) => {
-                console.log("Texto:", text);
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
                 
-                // Procura o padrão de número da carta (ex: 045/180)
-                const match = text.match(/\d{3}\/\d{3}/);
-                const result = match ? match[0] : "Número não detectado";
+                // Filtramos a busca apenas para números e letras (ajuda muito a não errar)
+                await worker.setParameters({
+                    tessedit_char_whitelist: '0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+                });
 
-                status.innerHTML = `✅ FIM!<br><br>Detectado: <span style="font-size:24px">${result}</span><br><br><small>Texto bruto: ${text.substring(0,50)}...</small>`;
-            }).catch(err => {
-                status.innerText = "Erro ao processar.";
+                const { data: { text } } = await worker.recognize(file);
+                
+                // Lógica para extrair o número da carta (ex: 045/180)
+                const cardNum = text.match(/\d{3}\/\d{3}/) || text.match(/\d{2}\/\d{2}/);
+                
+                loader.innerText = "✅ Leitura concluída!";
+                result.innerHTML = `
+                    <small style="color:#888; font-size:12px">Detectado:</small><br>
+                    <strong>${cardNum ? cardNum[0] : "Número não identificado"}</strong>
+                    <br><small style="font-size:10px; color:#555">${text.substring(0,40)}...</small>
+                `;
+
+                await worker.terminate();
+            } catch (err) {
+                loader.innerText = "❌ Erro ao ler carta.";
                 console.error(err);
-            });
+            }
         };
+
+        function salvar() {
+            const email = document.getElementById('cEmail').value;
+            if(!email) return alert("Digite o e-mail do cliente!");
+            alert("Enviando dados para o Supabase...");
+            // Aqui entra sua conexão com Supabase
+        }
     </script>
 </body>
 </html>
