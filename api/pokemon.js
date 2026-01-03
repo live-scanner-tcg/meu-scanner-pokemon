@@ -1,14 +1,17 @@
+// api/pokemon.js
 export default async function handler(req, res) {
     const { set, num } = req.query;
-    const apiKey = 'd18f5a1e-b4db-49ad-841b-6809c5f0515c'; // <--- COLOQUE SUA CHAVE AQUI
+    const apiKey = 'd18f5a1e-b4db-49ad-841b-6809c5f0515c'; 
 
-    // Se o usuário não mandar número, buscamos a coleção (set) inteira
-    let url = `https://api.pokemontcg.io/v2/cards?q=set.id:${set}`;
-    
-    // Se mandar o número, buscamos a carta exata
+    // O SEGREDO PARA JAPONESAS: 
+    // Usamos uma query que foca no set.id e no número exato.
+    // Exemplo de query: q=set.id:sv8a number:045
+    let query = `set.id:${set}`;
     if (num) {
-        url += ` number:${num}`;
+        query += ` number:${num}`;
     }
+
+    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`;
 
     try {
         const response = await fetch(url, {
