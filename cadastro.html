@@ -6,12 +6,13 @@
     <title>Cadastro | Live Market Pokémon</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f9f9f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 40px; border-radius: 12px; shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 380px; border-top: 6px solid #EE1515; }
-        .logo { text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 22px; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 380px; border-top: 6px solid #EE1515; }
+        .logo { text-align: center; font-weight: 900; margin-bottom: 20px; font-size: 22px; text-transform: uppercase; }
         .logo span { color: #EE1515; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #EE1515; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         button:hover { background: #3B4CCA; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .footer-link { text-align: center; margin-top: 15px; font-size: 13px; color: #666; }
         .footer-link a { color: #EE1515; text-decoration: none; font-weight: bold; }
     </style>
@@ -26,7 +27,7 @@
         <input type="text" id="nome" placeholder="Nome Completo" required>
         <input type="email" id="email" placeholder="Seu melhor e-mail" required>
         <input type="password" id="senha" placeholder="Senha (mín. 6 dígitos)" required>
-        <button type="submit">Cadastrar Agora</button>
+        <button type="submit" id="btnCadastrar">Cadastrar Agora</button>
     </form>
 
     <div class="footer-link">
@@ -37,37 +38,56 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // 1. Mudei o nome da variável para não dar conflito com a biblioteca
-    const SUPABASE_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
-    
-    // Aqui usamos supabaseClient em vez de apenas supabase
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Configurações do seu projeto
+    const SB_URL = 'https://hqmxcqhvwlvyellolhkm.supabase.co'; 
+    const SB_KEY = 'sb_publishable_CvY0uDpQZDPSnQixxh7uSA_8cYwqumF';
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
     const form = document.getElementById('formCadastro');
+    const btn = document.getElementById('btnCadastrar');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        btn.disabled = true;
+        btn.innerText = "Processando...";
+
         const email = document.getElementById('email').value;
         const password = document.getElementById('senha').value;
         const nome = document.getElementById('nome').value;
 
-        // 2. Chamando a função de cadastro com o novo nome da variável
-        const { data, error } = await supabaseClient.auth.signUp({
-            email: email,
-            password: password,
-            options: {
-                data: { full_name: nome }
-            }
-        });
+        try {
+            // 1. CRIAR CONTA NO AUTH
+            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password
+            });
 
-        if (error) {
-            alert("Erro: " + error.message);
+            if (authError) throw authError;
+
+            // 2. SALVAR NA TABELA PERFIS (Para o Admin conseguir consultar)
+            // Usamos o ID gerado pelo Auth para vincular o perfil
+            const { error: dbError } = await supabaseClient
+                .from('perfis')
+                .insert([
+                    { 
+                        id: authData.user.id, 
+                        nome_completo: nome,
+                        email: email
+                    }
+                ]);
+
+            if (dbError) throw dbError;
+
+            alert("Cadastro realizado com sucesso! Agora o Admin já pode te localizar pelo nome.");
+            window.location.href = "index.html"; // Redireciona para login
+
+        } catch (error) {
+            alert("Erro no cadastro: " + error.message);
             console.error(error);
-        } else {
-            alert("Cadastro realizado com sucesso! Verifique seu e-mail (ou a aba Authentication no Supabase).");
-            console.log("Usuário:", data.user);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Cadastrar Agora";
         }
     });
 </script>
